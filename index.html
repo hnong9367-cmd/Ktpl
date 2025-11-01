@@ -1,0 +1,2145 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/katex.min.css" />
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.10/katex.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <style>
+        :root {
+            --primary-bg: #f4f6f9;
+            --secondary-bg: #ffffff;
+            --text-color: #212529;
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --border-radius: 8px;
+            --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background-color: var(--primary-bg); color: var(--text-color); margin: 0; padding: 15px; }
+        .container { max-width: 800px; margin: auto; background-color: var(--secondary-bg); padding: 20px; border-radius: var(--border-radius); box-shadow: var(--box-shadow); overflow-y: auto; max-height: 95vh; position: relative; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        h1, h2, h3 { text-align: center; color: var(--primary-color); }
+        .btn { padding: 12px; font-size: 16px; font-weight: bold; color: white; background-color: var(--primary-color); border: none; border-radius: var(--border-radius); cursor: pointer; text-align: center; transition: background-color 0.2s; text-decoration: none; display: inline-block; width: 100%; }
+        .btn:hover { background-color: #0056b3; }
+        .btn:disabled { background-color: #a0c3e6; cursor: not-allowed; }
+        .button-group { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+        .question-container { margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 15px; }
+        .options-container label { display: flex; align-items: center; margin-bottom: 10px; padding: 12px; border: 1px solid #ddd; border-radius: 5px; cursor: pointer; transition: background-color 0.2s; }
+        .options-container label:hover { background-color: #f0f0f0; }
+        .question-text { font-size: 18px; margin-bottom: 15px; font-weight: bold; line-height: 1.6; }
+        .question-text img, .question-image { max-width: 100%; height: auto; display: block; margin: 10px auto; border: 1px solid #ddd; padding: 4px; border-radius: 4px; }
+        .user-greeting { text-align: center; margin-bottom: 20px; font-size: 1.1em; color: var(--secondary-color); }
+        .short-answer-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+
+        /* CSS CHO MENU CÀI ĐẶT */
+        #settings-icon-container { position: absolute; top: 15px; right: 20px; cursor: pointer; z-index: 100; padding: 5px; }
+        .hamburger-line { width: 25px; height: 3px; background-color: var(--secondary-color); margin: 5px 0; transition: 0.3s; }
+        #settings-panel { display: none; position: absolute; top: 50px; right: 20px; background-color: var(--secondary-bg); border-radius: var(--border-radius); box-shadow: var(--box-shadow); padding: 15px; z-index: 99; min-width: 250px; border: 1px solid #eee; }
+        .settings-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .settings-row label { font-size: 15px; color: var(--text-color); }
+        .settings-row .icon-btn { background: none; border: none; cursor: pointer; padding: 5px; }
+        .settings-row .icon-btn svg { width: 24px; height: 24px; fill: var(--secondary-color); }
+        #detailed-audio-settings { display: none; padding-left: 20px; border-left: 2px solid #f0f0f0; margin-left: 10px; margin-top: 10px; }
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary-color); }
+        input:checked + .slider:before { transform: translateX(20px); }
+
+        /* === CSS CHO CÂU HỎI TRUE/FALSE === */
+        .tf-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            margin-bottom: 10px;
+        }
+        .tf-statement {
+            flex-grow: 1;
+            margin-right: 15px;
+        }
+        .tf-buttons {
+            flex-shrink: 0;
+        }
+        .tf-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--secondary-color);
+            background-color: white;
+            color: var(--secondary-color);
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            min-width: 80px;
+            text-align: center;
+        }
+        .tf-btn.selected-true {
+            background-color: var(--success-color);
+            color: white;
+            border-color: var(--success-color);
+        }
+        .tf-btn.selected-false {
+            background-color: var(--danger-color);
+            color: white;
+            border-color: var(--danger-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="login-screen" class="screen active">
+            <h1>Chào mừng!</h1>
+            <p style="text-align: center; margin-bottom: 20px;">Vui lòng nhập tên của bạn để bắt đầu.</p>
+            <input type="text" id="username-input" placeholder="Nhập tên của bạn..." class="w-full p-2 border rounded mb-4">
+            <div class="button-group"><button id="login-btn" class="btn">Vào Menu Chính</button></div>
+        </div>
+        <div id="home-screen" class="screen">
+            <h1>Quiz Player (Offline)</h1>
+            <p id="user-greeting" class="user-greeting"></p>
+            <div class="button-group">
+                <button class="btn btn-success" onclick="showScreen('pre-quiz-menu-screen')">Bắt đầu làm bài</button>
+            </div>
+        </div>
+        <div id="pre-quiz-menu-screen" class="screen">
+             <h2>Tùy chọn làm bài</h2>
+             <div class="button-group">
+                <button id="menu-shuffle-btn" class="btn">Trộn câu hỏi và đáp án: Tắt</button>
+                <button id="menu-start-btn" class="btn btn-success">Bắt Đầu</button>
+                <button id="menu-back-btn" class="btn btn-secondary" onclick="showScreen('home-screen')">Quay Lại</button>
+            </div>
+        </div>
+
+        <div id="quiz-section" class="screen">
+            <div id="settings-icon-container" style="display: none;">
+                <div class="hamburger-line"></div>
+                <div class="hamburger-line"></div>
+                <div class="hamburger-line"></div>
+            </div>
+            <div id="settings-panel">
+                <div class="settings-row">
+                    <label>Âm thanh</label>
+                    <button id="master-volume-btn" class="icon-btn" title="Nhấn để Tắt/Bật, Nhấn giữ để xem chi tiết"></button>
+                </div>
+                <div id="detailed-audio-settings">
+                    <div class="settings-row">
+                        <label for="music-toggle">Nhạc nền</label>
+                        <label class="switch"><input type="checkbox" id="music-toggle"><span class="slider"></span></label>
+                    </div>
+                    <div class="settings-row">
+                        <label for="correct-sound-toggle">Khi trả lời đúng</label>
+                        <label class="switch"><input type="checkbox" id="correct-sound-toggle"><span class="slider"></span></label>
+                    </div>
+                     <div class="settings-row">
+                        <label for="incorrect-sound-toggle">Khi trả lời sai</label>
+                        <label class="switch"><input type="checkbox" id="incorrect-sound-toggle"><span class="slider"></span></label>
+                    </div>
+                </div>
+                <hr style="margin: 15px 0;">
+                <div class="settings-row">
+                    <label for="auto-advance-toggle">Tự động chuyển câu</label>
+                    <label class="switch">
+                        <input type="checkbox" id="auto-advance-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <h2 id="quiz-title">Nội dung bài thi</h2>
+            <div id="quiz-live-container"></div>
+            <div id="results-container" style="display:none;">
+                <h2>Kết Quả</h2>
+                <p id="final-score" class="text-2xl font-bold"></p>
+            </div>
+            <div class="button-group">
+                <button id="retry-btn" class="btn btn-success" style="display:none;" onclick="startQuizFromMenu()">Làm Lại</button>
+                <button id="submit-early-btn" class="btn btn-warning" style="display:none;">Nộp Bài Sớm</button>
+                <button id="exit-btn" class="btn btn-danger" onclick="showScreen('home-screen')">Thoát</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const QUIZ_DATA_SETS = {
+  "Ktpl": [
+    {
+      "cau_hoi": "Câu 1:  Sự tranh đua giữa các chủ thể kinh tế nhằm có được những ưu thế trong sản xuất, tiêu thụ hàng hoá, qua đó thu được lợi ích tối đa thể hiện nội dung của khái niệm nào dưới đây?",
+      "lua_chon": [
+        "*A. Cạnh tranh kinh tế.",
+        "B. Đấu tranh.",
+        "C. Sản xuất.",
+        "D. Kinh doanh."
+      ],
+      "dap_an_dung": [
+        "*A. Cạnh tranh kinh tế."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 2: Sự tranh đua giữa các chủ thể trong sản xuất kinh doanh nhằm thu lợi nhuận về mình nhiều hơn đề cập đến nội dung nào dưới đây?",
+      "lua_chon": [
+        "*A. Khái niệm cạnh tranh.",
+        "B. Nguyên nhân của cạnh tranh.",
+        "C. Nội  dung của cạnh tranh.",
+        "D. Mặt hạn chế của cạnh."
+      ],
+      "dap_an_dung": [
+        "*A. Khái niệm cạnh tranh."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 3: Nội dung nào dưới đây là biểu hiện của cạnh tranh lành mạnh của nhãn hàng P?",
+      "lua_chon": [
+        "A. Cung cấp thông tin không đúng về các doanh nghiệp khác.",
+        "B. Lôi kéo khách hàng một cách bất chính mua sản phẩm của mình.",
+        "C. Xâm phạm thông tin, bí mật kinh doanh của nhãn hàng khác.",
+        "*D.Tài trợ các chương trình trò chơi trên truyền hình."
+      ],
+      "dap_an_dung": [
+        "*D.Tài trợ các chương trình trò chơi trên truyền hình."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 4: Để cạnh tranh lành mạnh doanh nghiệp D có thể thực hiện nội dung nào sau đây?",
+      "lua_chon": [
+        "A. Viết bài chia sẻ việc làm không tốt của doanh nghiệp khác.",
+        "B. Lôi kéo thợ giỏi của doanh nghiệp khác về làm cho mình.",
+        "*C. Tăng cường chiến lược tặng quà khuyến mãi.",
+        "D. Bí mật lấy công nghệ sản xuất của doanh nghiệp khác."
+      ],
+      "dap_an_dung": [
+        "*C. Tăng cường chiến lược tặng quà khuyến mãi."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 5:  Khi phát hiện một cửa hàng chuyên tiêu thụ hàng giả, em chọn cách xử sự nào dưới đây cho phù hợp với quy định của pháp luật?",
+      "lua_chon": [
+        "A. Vẫn mua hàng hóa đó vì giá rẻ hơn nơi khác.",
+        "B. Không đến cửa hàng đó mua hàng nữa.",
+        "*C. Báo cho cơ quan chức năng biết.",
+        "D. Tự tìm hiểu nguồn gốc số hàng đó."
+      ],
+      "dap_an_dung": [
+        "*C. Báo cho cơ quan chức năng biết."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 6:  Nội dung nào dưới đây thể hiện vai trò của cạnh tranh?",
+      "lua_chon": [
+        "A. Bảo vệ môi trường tự nhiên.",
+        "B. Đa dạng hóa các quan hệ kinh tế.",
+        "C. Nâng cao năng lực chống chịu của nền kinh tế.",
+        "*D. Thúc đẩy lực lượng sản xuất phát triển."
+      ],
+      "dap_an_dung": [
+        "*D. Thúc đẩy lực lượng sản xuất phát triển."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu  7: Nội dung nào dưới đây thể hiện vai trò của cạnh tranh?",
+      "lua_chon": [
+        "A. Bảo vệ quyền lợi người tiêu dùng,?",
+        "B. Tích trữ hàng hóa để tăng giá?",
+        "C. Phân hóa giàu – nghèo?",
+        "*D. Đổi mới công nghệ sản xuất để giảm chi phí."
+      ],
+      "dap_an_dung": [
+        "*D. Đổi mới công nghệ sản xuất để giảm chi phí."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 8. Hai doanh nghiệp D vet H không ngừng chạy đua đầu tư máy móc thiết bị, nâng cao chất lượng sản phẩm là thể hiện sự",
+      "lua_chon": [
+        "A. phát triển.",
+        "B. tranh giành.",
+        "*C. cạnh tranh.",
+        "D. đấu tranh."
+      ],
+      "dap_an_dung": [
+        "*C. cạnh tranh."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 9. Để cạnh tranh lành mạnh doanh nghiệp D có thể thực hiện nội dung nào sau đây?",
+      "lua_chon": [
+        "*A. Tăng cường chiến lược tặng quà khuyến mãi.",
+        "B. Viết bài chia sẻ việc làm không tốt của doanh nghiệp H.",
+        "C. Lôi kéo thợ giỏi của doanh nghiệp H về làm cho mình.",
+        "D. Bí mật lấy công nghệ sản xuất của doanh nghiệp H."
+      ],
+      "dap_an_dung": [
+        "*A. Tăng cường chiến lược tặng quà khuyến mãi."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 10. Vì quán cà phê của mình khách ít trong khi quán đối diện của nhà anh D khách lại rất đông nên anh L đã thuê kẻ xấu ngày nào cũng quậy phá quán của anh D và tạt nước bẩn vào bản ghế trong quán D. Việc làm của anh L là biểu hiện nào của cạnh tranh?",
+      "lua_chon": [
+        "*A. Cạnh tranh không lành mạnh.",
+        "B. Cạnh tranh phi pháp.",
+        "C. Chiến thuật tiêu cực.",
+        "D. Chiêu thức trong kinh doanh."
+      ],
+      "dap_an_dung": [
+        "*A. Cạnh tranh không lành mạnh."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 11. Vì quán cà phê của mình khách ít trong khi quán đối diện của nhà anh D khách lại rất đông. Anh L nên làm gì để nâng cao năng lực cạnh tranh?",
+      "lua_chon": [
+        "*A.Cải thiện chất lượng phục vụ.",
+        "B. Nâng giá các loại nước uống.",
+        "C.Thuê người qua quán D học công thức pha chế.",
+        "D. Chia sẻ thông tin không tốt về quán D."
+      ],
+      "dap_an_dung": [
+        "*A.Cải thiện chất lượng phục vụ."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 12. Gia đình S bán bún phở, gần dây ít khách  do có thêm 2 quán phở mới mở. Gia đình S  đã đầu tư vào chất lượng và thái độ phục vụ khách hàng chu đáo hơn, còn có hình thức tặng quà bong bóng, kẹo...cho khách hàng vào ngày cuối tuần. Nhờ vậy, lượng khách tăng lên đáng kể, việc buôn bán nhờ thế mà khá lên. Gia  đình S đã nâng cao chất lượng phục vụ khách hàng chu đáo hơn là nội dung nào sau đây của cạnh trannh?",
+      "lua_chon": [
+        "A. Cạnh tranh không lành mạnh.",
+        "*B. Cạnh tranh lành mạnh.",
+        "C. Tiếp thị sản phẩm.",
+        "D. Phát triển quy mô."
+      ],
+      "dap_an_dung": [
+        "*B. Cạnh tranh lành mạnh."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 13.  Gia đình S bán bún phở, gần dây ít khách  do có thêm 2 quán phở mới mở. Gia đình S  đã đầu tư vào chất lượng và thái độ phục vụ khách hàng chu đáo hơn, còn có hình thức tặng quà bong bóng, kẹo...cho khách hàng vào ngày cuối tuần. Nhờ vậy, lượng khách tăng lên đáng kể, việc buôn bán nhờ thế mà khá lên. Điều gì sau đây làm cho quán phở S phải cạnh tranh?",
+      "lua_chon": [
+        "*A. Lợi nhuận.",
+        "B. khách hàng.",
+        "C. Nguồn nguyên liệu.",
+        "D. Giá cả."
+      ],
+      "dap_an_dung": [
+        "*A. Lợi nhuận."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 14.  Câu tục ngữ “Thương trường như chiến trường” phản ánh quy luật kinh tế nào sau đây?",
+      "lua_chon": [
+        "A. Cung cầu.",
+        "B. Giá trị.",
+        "C. Giá cả.",
+        "*D. Cạnh tranh."
+      ],
+      "dap_an_dung": [
+        "*D. Cạnh tranh."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu  15.  Nội dung nào dưới đây thể hiện vai trò của cạnh tranh?",
+      "lua_chon": [
+        "A. Bảo vệ quyền lợi người tiêu dùng.",
+        "B. Tích trữ hàng hóa để tăng giá.",
+        "C. Phân hóa giàu – nghèo giữa những người sản xuất.",
+        "*D. Thoả mãn ngày càng tốt nhu cầu của con người."
+      ],
+      "dap_an_dung": [
+        "*D. Thoả mãn ngày càng tốt nhu cầu của con người."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 16. Trong nền kinh tế thị trường, hành vi nào sau đây là cạnh tranh không lành mạnh?",
+      "lua_chon": [
+        "A. Mở rộng quy mô sản xuất của doanh nghiệp.",
+        "B. Thuê những người nổi tiếng quảng bá sản phẩm.",
+        "C. Tiết kiệm chi phí để giảm giá thành sản phẩm.",
+        "*D. Quảng cáo gây nhầm lẫn cho khách hàng."
+      ],
+      "dap_an_dung": [
+        "*D. Quảng cáo gây nhầm lẫn cho khách hàng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 17.  Nội dung nào dưới đây là biểu hiện của cạnh tranh lành mạnh của nhãn hàng P?",
+      "lua_chon": [
+        "A. Cung cấp thông tin không đúng về các doanh nghiệp khác.",
+        "B. Lôi kéo khách hàng một cách bất chính mua sản phẩm của mình.",
+        "C. Xâm phạm thông tin, bí mật kinh doanh của nhãn hàng khác.",
+        "*D. Hỗ trợ các địa phương xây dựng các trường học kiên cố."
+      ],
+      "dap_an_dung": [
+        "*D. Hỗ trợ các địa phương xây dựng các trường học kiên cố."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 18. Sự ganh đua giữa các chủ thể kinh tế nhằm giành lấy những điều kiện thuận lợi trong sản xuất hay lưu thông hàng hóa, dịch vụ để thu được nhiều lợi nhuận là nội dung của khái niệm",
+      "lua_chon": [
+        "A. lợi tức.",
+        "B. tranh giành.",
+        "*C. cạnh tranh.",
+        "D. đấu tranh."
+      ],
+      "dap_an_dung": [
+        "*C. cạnh tranh."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu  2.  Nội dung nào dưới đây thể hiện vai trò của cạnh tranh?",
+      "lua_chon": [
+        "A. Bảo vệ quyền lợi người tiêu dùng.",
+        "B. Tích trữ hàng hóa để tăng giá.",
+        "C. Phân hóa giàu – nghèo.",
+        "*D. Thúc đẩy lực lượng sản xuất phát triển."
+      ],
+      "dap_an_dung": [
+        "*D. Thúc đẩy lực lượng sản xuất phát triển."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 19. Một trong những biểu hiện của cạnh tranh không lành mạnh là",
+      "lua_chon": [
+        "*A. xâm phạm bí mật trong kinh doanh.",
+        "B. tìm nhiều biện pháp để thu hút khách hàng.",
+        "C. cung cấp thông tin về trụ sở của doanh nghiệp khác.",
+        "D. ganh đua giành thị phần bán hàng."
+      ],
+      "dap_an_dung": [
+        "*A. xâm phạm bí mật trong kinh doanh."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 20: Cầu là lượng hàng hóa, dịch vụ mà người tiêu dùng sẵn sàng mua trong một khoảng thời gian xác định với một mức giá",
+      "lua_chon": [
+        "A. tương đương.",
+        "*B. nhất định.",
+        "C. mặc định.",
+        "D. cố định."
+      ],
+      "dap_an_dung": [
+        "*B. nhất định."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 21: Cung là số lượng hàng hóa, dịch vụ mà nhà cung cấp sẵn sàng đáp ứng cho nhu cầu của thị trường trong một khoảng thời gian nhất định với mức giá",
+      "lua_chon": [
+        "A. khoảng thời gian xác định.",
+        "*B. xác định.",
+        "C. thời gian xác định.",
+        "D. không gian xác định."
+      ],
+      "dap_an_dung": [
+        "*B. xác định."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 22.  Một trong những yếu tố ảnh hưởng đến cầu",
+      "lua_chon": [
+        "*A. thu nhập của người tiêu dùng.",
+        "B. nguồn gốc của hàng hóa.",
+        "C. chất lượng của hàng hóa.",
+        "D. xuất xứ của hàng hoá đó"
+      ],
+      "dap_an_dung": [
+        "*A. thu nhập của người tiêu dùng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 23.   Biểu hiện nào dưới đây không phải là cung?",
+      "lua_chon": [
+        "A. Quần áo được bày bán ở các cửa hàng thời trang.",
+        "B. Đồng bằng sông Cửu Long đang  thu hoạch 10 tấn lúa để xuất khẩu.",
+        "C. Công ty sơn hàng tháng sản xuất được 3 triệu thùng sơn để bán.",
+        "*D. Rau sạch được các hộ gia đình trồng để ăn, không bán.="
+      ],
+      "dap_an_dung": [
+        "*D. Rau sạch được các hộ gia đình trồng để ăn, không bán.="
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 24.  Một trong những yếu tố ảnh hưởng đến cung là",
+      "lua_chon": [
+        "*A. giá cả của hàng hóa đó.",
+        "B. nguồn gốc của hàng hóa.",
+        "C. chất lượng của hàng hóa.",
+        "D. xuất xứ của hàng hoá đó."
+      ],
+      "dap_an_dung": [
+        "*A. giá cả của hàng hóa đó."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 25: Trong những tháng đầu năm 2024, giá thanh long có nhiều biến động, nhiều hộ gia đình ở huyện T phá thanh long ruột trắng để trồng thanh long ruột đỏ do có giá cao hơn dao động từ 2000đ-3000đ/1kg. Việc chuyển đổi cây trồng thanh long là biểu hiện nào trong nội dung quan hệ cung – cầu?",
+      "lua_chon": [
+        "A. Cung – cầu tác động lẫn nhau.",
+        "B. Cung – cầu ảnh hưởng đến giá cả thị trường.",
+        "*C. Giá cả ảnh hưởng đến cung – cầu.",
+        "D. Cung lớn hơn cầu làm cho giá giảm?"
+      ],
+      "dap_an_dung": [
+        "*C. Giá cả ảnh hưởng đến cung – cầu."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 26:  Trong những tháng đầu năm 2024, giá thanh long có nhiều biến động, nhiều hộ gia đình ở huyện T phá thanh long ruột trắng để trồng thanh long ruột đỏ do có giá cao hơn dao động từ 2000đ-3000đ/1kg. Người nông dân trồng thanh long ruột đỏ nhiều sẽ dẫn đến điều gì sau đây?",
+      "lua_chon": [
+        "*A. Cung tăng.",
+        "B. Cung giảm.",
+        "C. Cầu tăng.",
+        "D. Giá giảm."
+      ],
+      "dap_an_dung": [
+        "*A. Cung tăng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 27: Tháng 5 mùa vải thiều vào đầu vụ thu hoạch. Giá cao vải năm nay cao hơn so với đầu vụ năm ngoái 5.000đ -7.000đ/1kg. Chị K rất thích ăn vải thiều, nhưng giá lại quá cao vì nguồn cung thị trường thấp nên chị đã chuyển sang dùng các loại trái cây khác có giá cả phù hợp. . Chị K đã vận dụng tốt quy luật nào sau đây?",
+      "lua_chon": [
+        "A. Cạnh tranh.",
+        "*B. Cung - cầu.",
+        "C. Giá trị.",
+        "D. Tiêu dùng."
+      ],
+      "dap_an_dung": [
+        "*B. Cung - cầu."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 28.  Tháng 5 mùa vải thiều vào đầu vụ thu hoạch. Giá cao vải năm nay cao hơn so với đầu vụ năm ngoái 5.000đ -7.000đ/1kg. Chị K rất thích ăn vải thiều, nhưng giá lại quá cao vì nguồn cung thị trường thấp nên chị đã chuyển sang dùng các loại trái cây khác có giá cả phù hợp. Việc chị K chuyển sang lựa chọn mua những loại trái cây khác là nội dung nào của quy luật cung – cầu?",
+      "lua_chon": [
+        "A. Khái niệm.",
+        "B. Nguyên nhân.",
+        "C. Mối quan hệ.",
+        "*D. Vai trò."
+      ],
+      "dap_an_dung": [
+        "*D. Vai trò."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 29. Nếp cái hoa vàng hay còn gọi là  nếp bắc là loại lúa nếp được cấy trồng vào vụ mùa (khoảng từ tháng 5 đến tháng 10 âm lịch) ở các tỉnh trung du, đồng bằng Bắc Bộ và khi trổ bông thì phấn hoa có màu vàng (chứ không phải là màu trắng như các giống lúa thông thường). Đây là loại nếp có hạt tròn to, vị ngọt nhẹ, cơm dẻo, mềm, thơm tự nhiên và có thành phần dinh dưỡng khá cao: Protein: Chiếm 71.6 %, canxi 32 mg (3%), sắt 0.80 mg (6%), magiê 28 mg (7%). Vì thế nên nếp cái hoa vàng thường được sử dụng để gói bánh chưng ngày Tết. Gần đến Tết nguyên đán, nhu cầu mua gạo nếp ăn Tết tăng cao khiến nguồn cung không đủ,  giá cả cũng sôi động hơn trên thị trường. Giá gạo nếp trên thị trường dao động từ 30.000 đến 50.000 đồng/kg.Trong những nhân tố dưới đây, nhân tố nào ảnh hưởng nhiều nhất đến cầu về dịch vụ, hàng hoá trong trường hợp trên?",
+      "lua_chon": [
+        "A. Thu nhập của người tiêu dùng.",
+        "B. Dự đoán của người tiêu dùng về thị trường.",
+        "*C. Tâm lí, tập quán hoặc thị hiếu của người tiêu dùng.",
+        "D. Đặc điểm của gạo nếp cái hoa vàng."
+      ],
+      "dap_an_dung": [
+        "*C. Tâm lí, tập quán hoặc thị hiếu của người tiêu dùng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 30. Nếp cái hoa vàng hay còn gọi là  nếp bắc là loại lúa nếp được cấy trồng vào vụ mùa (khoảng từ tháng 5 đến tháng 10 âm lịch) ở các tỉnh trung du, đồng bằng Bắc Bộ và khi trổ bông thì phấn hoa có màu vàng (chứ không phải là màu trắng như các giống lúa thông thường). Đây là loại nếp có hạt tròn to, vị ngọt nhẹ, cơm dẻo, mềm, thơm tự nhiên và có thành phần dinh dưỡng khá cao: Protein: Chiếm 71.6 %, canxi 32 mg (3%), sắt 0.80 mg (6%), magiê 28 mg (7%). Vì thế nên nếp cái hoa vàng thường được sử dụng để gói bánh chưng ngày Tết. Gần đến Tết nguyên đán, nhu cầu mua gạo nếp ăn Tết tăng cao khiến nguồn cung không đủ,  giá cả cũng sôi động hơn trên thị trường. Giá gạo nếp trên thị trường dao động từ 30.000 đến 50.000 đồng/kg.Trong trường hợp trên vào dịp gần Tết, cung, cầu sẽ có biểu hiện như thế nào?",
+      "lua_chon": [
+        "A. Cung lớn hơn cầu.",
+        "B. Cung nhỏ hơn cầu.",
+        "C. Cung  bằng Cầu.",
+        "*D. Cung, cầu tác động lẫn nhau."
+      ],
+      "dap_an_dung": [
+        "*D. Cung, cầu tác động lẫn nhau."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 31. Nếp cái hoa vàng hay còn gọi là  nếp bắc là loại lúa nếp được cấy trồng vào vụ mùa (khoảng từ tháng 5 đến tháng 10 âm lịch) ở các tỉnh trung du, đồng bằng Bắc Bộ và khi trổ bông thì phấn hoa có màu vàng (chứ không phải là màu trắng như các giống lúa thông thường). Đây là loại nếp có hạt tròn to, vị ngọt nhẹ, cơm dẻo, mềm, thơm tự nhiên và có thành phần dinh dưỡng khá cao: Protein: Chiếm 71.6 %, canxi 32 mg (3%), sắt 0.80 mg (6%), magiê 28 mg (7%). Vì thế nên nếp cái hoa vàng thường được sử dụng để gói bánh chưng ngày Tết. Gần đến Tết nguyên đán, nhu cầu mua gạo nếp ăn Tết tăng cao khiến nguồn cung không đủ,  giá cả cũng sôi động hơn trên thị trường. Giá gạo nếp trên thị trường dao động từ 30.000 đến 50.000 đồng/kg. Trong nền kinh tế thị trường,  vai trò của quan hệ cung cầu đối với chủ thể tiêu dùng là gì?",
+      "lua_chon": [
+        "*A. Là căn cứ để lựa chọn việc mua hàng hóa phù hợp.",
+        "B. Là cơ sở để đưa ra các biện pháp, chính sách cân đối cung cầu.",
+        "C. Là tác nhân trực tiếp khiến giá cả thường xuyên biến động.",
+        "D. Là cơ sở để đưa ra các biện pháp, chính sách bình ổn thị trường."
+      ],
+      "dap_an_dung": [
+        "*A. Là căn cứ để lựa chọn việc mua hàng hóa phù hợp."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 32: Đọc thông tin sau và trả lời  câu hỏi:\nTrong 3 tháng tới, anh G là giám đốc một cơ sở sản xuất mặt hàng áo khoác ra quyết định cắt giảm lượng áo khoác đưa ra thị trường tại các tỉnh miền Trung vì các tỉnh này đang vào hè thời tiết nắng nóng nên sức tiêu thụ giảm. Anh G đã vận dụng nội dung quan hệ cung – cầu nào sau đây?",
+      "lua_chon": [
+        "A. Cầu giảm,  cung tăng.",
+        "*B. Cầu giảm, cung giảm.",
+        "C. Cầu tăng, cung tăng .",
+        "D. Cầu tăng, cung giảm."
+      ],
+      "dap_an_dung": [
+        "*B. Cầu giảm, cung giảm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 33: Đọc thông tin sau và trả lời  câu hỏi:\n \t\tDự báo thời gian tới, thị trường thịt lợn sẽ tiếp tục giữ đà tăng do nhu cầu tiêu thụ của thị trường tốt hơn. Nguyên nhân thịt heo hình thành mặt bằng giá mới ở mức cao so với những tháng đầu năm. Theo thương lái và doanh nghiệp sản xuất, kinh doanh sản phẩm chăn nuôi, giá heo hơi tăng trở lại do nguồn cung giảm mạnh khi người chăn nuôi giảm đàn hoặc ngừng nuôi sau nhiều tháng dài gồng mình gánh lỗ. Hiện nay trên thị trường giá thịt heo rất cao. Trong trường hợp này cung và giá cả có mối quan hệ như thế nào?",
+      "lua_chon": [
+        "A. Giá cao thì cung giảm.",
+        "*B. Giá cao thì cung tăng.",
+        "C. Giá thấp thì cung tăng.",
+        "D. Giá cao thì cầu tăng."
+      ],
+      "dap_an_dung": [
+        "*B. Giá cao thì cung tăng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 34: Thịt lợn là món ăn ưa thích của nhiều người. Do thu nhập còn hạn chế nên vào thời điểm giá thịt lợn quá cao, chị N chuyển sang các loại sản phẩm khác thay thế có giá cả ổn định hơn như: cá, thịt, gà, trứng,...Việc chị Chị N chuyển sang mua các loại hàng hóa khác là nội dung nào sau đây của quy luật cung – cầu?",
+      "lua_chon": [
+        "A. Khái niệm.",
+        "B. Đặc điểm.",
+        "C. Tính chất.",
+        "*D. Vai trò."
+      ],
+      "dap_an_dung": [
+        "*D. Vai trò."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 35:  Tháng 5 mùa vải thiều vào đầu vụ thu hoạch. Giá cao vải năm nay cao hơn so với đầu vụ năm ngoái 5.000đ -7.000đ/1kg. Chị K rất thích ăn vải thiều, nhưng giá lại quá cao vì nguồn cung thị trường thấp nên chị đã chuyển sang dùng các loại trái cây khác có giá cả phù hợp. Việc chị K chuyển sang lựa chọn mua những loại trái cây khác là nội dung nào của quy luật cung – cầu?",
+      "lua_chon": [
+        "A. Khái niệm.",
+        "B. Nguyên nhân.",
+        "C. Mối quan hệ.",
+        "*D. Vai trò."
+      ],
+      "dap_an_dung": [
+        "*D. Vai trò."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 36: Một trong những nhân tố ảnh hưởng đến cầu là",
+      "lua_chon": [
+        "*A. thị hiếu.",
+        "B. sản xuất.",
+        "C. kinh doanh.",
+        "D. truyền thống."
+      ],
+      "dap_an_dung": [
+        "*A. thị hiếu."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 37: Một trong những nhân tố ảnh hưởng đến cung là",
+      "lua_chon": [
+        "A. thói quen? \t\t.",
+        "B. nhu cầu của người sản xuất.",
+        "C. kỳ vọng, dự đoán của người tiêu dùng.",
+        "*D. kỳ vọng của các chủ thể sản xuất."
+      ],
+      "dap_an_dung": [
+        "*D. kỳ vọng của các chủ thể sản xuất."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 38: Yếu tố nào sau đây ảnh hưởng đến lượng cung?",
+      "lua_chon": [
+        "*A. Giá cả các yếu tố đầu vào.",
+        "B. Thu nhập của người bán.",
+        "C. Giá cả hàng hóa, dịch vụ.",
+        "D. Thị hiếu của người tiêu dùng."
+      ],
+      "dap_an_dung": [
+        "*A. Giá cả các yếu tố đầu vào."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 39: Trong nền kinh tế thị trường, lượng cung có tác động như thế nào đến lượng cầu hàng hóa, dịch vụ?",
+      "lua_chon": [
+        "*A. Kích thích lượng cầu.",
+        "B. Xác định cơ cấu của cầu.",
+        "C. Xác định khối lượng của cầu.",
+        "D. Không có tác động gì đến cầu."
+      ],
+      "dap_an_dung": [
+        "*A. Kích thích lượng cầu."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu40: Lượng cung bánh Trung thu cho thị trường ở nước ta năm 2022 không bị ảnh hưởng bởi yếu tố nào sau đây?",
+      "lua_chon": [
+        "A. Giá bán sản phẩm.",
+        "B.Chính sách của nhà nước.",
+        "C.Trình độ công nghệ sản xuất.",
+        "*D.Số lượng người thử nghiệm."
+      ],
+      "dap_an_dung": [
+        "*D.Số lượng người thử nghiệm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 41:  Khi cầu tăng, sản xuất mở rộng dẫn đến cung tăng là nội dung của biểu hiện nào dưới đây trong quan hệ cung - cầu?",
+      "lua_chon": [
+        "*A. Cung cầu tác động lẫn nhau.",
+        "B. Cung cầu ảnh hưởng đến giá cả.",
+        "C. Giá cả ảnh hưởng đến cung cầu.",
+        "D. Thị trường chi phối cung cầu."
+      ],
+      "dap_an_dung": [
+        "*A. Cung cầu tác động lẫn nhau."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 42:  Khi cầu giảm, sản xuất thu hẹp dẫn đến cung giảm là nội dung của biểu hiện nào trong quan hệ cung - cầu ?",
+      "lua_chon": [
+        "*A. Cung cầu tác động lẫn nhau.",
+        "B. Cung cầu ảnh hưởng đến giá cả.",
+        "C. Giá cả ảnh hưởng đến cung cầu.",
+        "D. Thị trường chi phối cung cầu."
+      ],
+      "dap_an_dung": [
+        "*A. Cung cầu tác động lẫn nhau."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 1.  Để khắc phục tình trạng lạm phát do thừa tiền trong lưu thông, nhà nước thường ban hành chính sách nào sau đây?",
+      "lua_chon": [
+        "A. Thu hút vốn đầu tư.",
+        "*B. Cắt giảm chi tiêu công.",
+        "C. Giảm thuế.",
+        "D. Tăng thuế."
+      ],
+      "dap_an_dung": [
+        "*B. Cắt giảm chi tiêu công."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 2.  Khi cầu của người tiêu dùng về mặt hàng nào đó tăng cao thì người sản xuất sẽ lựa chọn giải pháp nào sau đây?",
+      "lua_chon": [
+        "A. Giữ nguyên quy mô sản xuất.",
+        "B. Tái cơ cấu sản xuất.",
+        "*C. Mở rộng sản xuất.",
+        "D. Thu hẹp sản xuất."
+      ],
+      "dap_an_dung": [
+        "*C. Mở rộng sản xuất."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 3. Để khắc phục tình trạng lạm phát do chi phí đẩy, nhà nước thường ban hành chính sách nào sau đây?",
+      "lua_chon": [
+        "*A. Thu hút vốn đầu tư, giảm thuế.",
+        "B. Cắt giảm chi tiêu ngân sách.",
+        "C. Giảm mức cung tiền.",
+        "D. Tăng thuế, thu hút vốn đầu tư."
+      ],
+      "dap_an_dung": [
+        "*A. Thu hút vốn đầu tư, giảm thuế."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 4: Theo Tổng cục Thống kê, năm 2021, lạm phát ở Việt Nam được kiểm soát ở mức thấp là 1,84%. Trong bối cảnh áp lực lạm phát toàn cầu ngày càng tăng cao, giá nguyên vật liệu đầu vào cho sản xuất, giá cước vận chuyển liên tục tăng nhưng chỉ số giá tiêu dùng (CPI) bình quân năm 2021 của Việt Nam chỉ tăng 1,84% so với năm trước. Chỉ số 1,84% phản ánh điều gì?",
+      "lua_chon": [
+        "A. Chỉ số tiêu dùng.",
+        "B. Phần trăm tăng thêm.",
+        "*C. Lạm phát.",
+        "D. Mức độ lạm phát."
+      ],
+      "dap_an_dung": [
+        "*C. Lạm phát."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 5: Để khắc phục tình trạng lạm phát do chi phí đẩy, nhà nước thường ban hành chính sách nào sau đây?",
+      "lua_chon": [
+        "*A. Thu hút vốn đầu tư, giảm thuế.",
+        "B. Cắt giảm chi tiêu ngân sách.",
+        "C. Giảm mức cung tiền.",
+        "D. Tăng thuế."
+      ],
+      "dap_an_dung": [
+        "*A. Thu hút vốn đầu tư, giảm thuế."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 6: Nhà nước thường ban hành chính sách nào sau đây để khắc phục tình trạng lạm phát do cầu kéo?",
+      "lua_chon": [
+        "A. Tăng chi tiêu ngân sách.",
+        "B. Thu hút vốn đầu tư.",
+        "*C. Tăng thuế.",
+        "D. Giảm thuế."
+      ],
+      "dap_an_dung": [
+        "*C. Tăng thuế."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 7:  Nền kinh tế Việt Nam có độ mở lớn và ngày càng có quan hệ sâu rộng với các nền kinh tế trên thế giới nên biến động giá cả hàng hoá trên thế giới có tác động nhất định đến giá cả và lạm phát trong nước, tăng trưởng kinh tế phụ thuộc vào tổng cầu của bên ngoài. Trong ba tháng cuối năm 2022, kinh tế trong nước có khả năng phục hồi mạnh mẽ hơn, áp lực lạm phát sẽ tiếp tục xu hướng tăng dần khi giá nguyên nhiên vật liệu đầu vào trên thế giới và giá sản xuất trong nước đang ngày càng tăng cao. Theo thông tin này thì nguyên nhân gây ra lạm phát là",
+      "lua_chon": [
+        "*A. Chi phí sản xuất tăng cao.",
+        "B. Tổng cầu của nền kinh tế tăng.",
+        "C. Giá cả nguyên liệu, nhân công, thuế bình ổn.",
+        "D. Lượng tiền trong lưu thông vượt quá mức cần thiết."
+      ],
+      "dap_an_dung": [
+        "*A. Chi phí sản xuất tăng cao."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 8: Theo Tổng cục Thống kê, năm 2021, lạm phát ở Việt Nam được kiểm soát ở mức thấp là 1,84%. Trong bối cảnh áp lực lạm phát toàn cầu ngày càng tăng cao, giá nguyên vật liệu đầu vào cho sản xuất, giá cước vận chuyển liên tục tăng nhưng chỉ số giá tiêu dùng (CPI) bình quân năm 2021 của Việt Nam chỉ tăng 1,84% so với năm trước. Theo thông tin trên thị nguyên nhân chủ yếu làm cho lạm phát toàn cầu tăng là",
+      "lua_chon": [
+        "A. tăng theo áp lực của toàn cầu.",
+        "*A. chi phí sản xuất tăng cao.",
+        "C. giá cước vận chuyển tăng.",
+        "D. giá nguyên liệu đầu vào tăng."
+      ],
+      "dap_an_dung": [
+        "*A. chi phí sản xuất tăng cao."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 9. Sự tăng mức giá chung các hàng hóa, dịch vụ của nền kinh tế (thường tính bằng chỉ số giá tiêu dùng CPI) một cách liên tục trong một thời gian nhất định được gọi là",
+      "lua_chon": [
+        "A. tăng trưởng.",
+        "*B. lạm phát.",
+        "C. khủng hoảng.",
+        "D. suy thoái."
+      ],
+      "dap_an_dung": [
+        "*B. lạm phát."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 10. Chỉ số giá tiêu dùng được viết tắt là",
+      "lua_chon": [
+        "*A. CPI.",
+        "B. KPI.",
+        "C. GDP.",
+        "D. HDI."
+      ],
+      "dap_an_dung": [
+        "*A. CPI."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 11. Căn cứ vào tỉ lệ, có thể chia lạm phát thành mấy loại hình?",
+      "lua_chon": [
+        "A. 2 loại hình.",
+        "*B. 3 loại hình.",
+        "C. 4 loại hình.",
+        "D. 5 loại hình."
+      ],
+      "dap_an_dung": [
+        "*B. 3 loại hình."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 12. Căn cứ vào tỉ lệ lạm phát, mức độ tăng của giá cả ở hai con số trở lên hằng năm (10% £ CPI < 1.000%) được gọi là tình trạng",
+      "lua_chon": [
+        "A. lạm phát vừa phải.",
+        "*B. lạm phát phi mã.",
+        "C. siêu lạm phát.",
+        "D. lạm phát nghiêm trọng."
+      ],
+      "dap_an_dung": [
+        "*B. lạm phát phi mã."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 13. Tình trạng lạm phát vừa phải được xác định khi",
+      "lua_chon": [
+        "A. đồng tiền mất giá nghiêm trọng, nền kinh tế rơi vào trạng thái khủng hoảng.",
+        "*B. mức độ tăng của giá cả ở một con số hằng năm (0% < CPI <10%).",
+        "C. mức độ tăng của giá cả ở hai con số trở lên hằng năm (10% £ CPI < 1000%).",
+        "D. giá cả tăng lên với tốc độ nhanh, đồng tiền mất giá nghiêm trọng (1000% £ CPI)."
+      ],
+      "dap_an_dung": [
+        "*B. mức độ tăng của giá cả ở một con số hằng năm (0% < CPI <10%)."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 14. Năm 1985, Việt Nam tiến hành đổi tiền theo Quyết định số 01/HDBT-TD ngày 13/9/1985. Sau cuộc đổi tiền, nền kinh tế rơi vào tình trạng lạm phát tăng cao: CPI năm 1986 tăng lên 114,7%, năm 1987 là 323,1%, năm 1988 là 393%.Lạm phát ở Việt Nam trong giai đoạn 1986- 1988 thuộc loại lạm phát nào dưới đây?",
+      "lua_chon": [
+        "A. Lạm phát nghiêm trọng.",
+        "B. Siêu lạm phát.",
+        "C. Lạm phát vừa phải.",
+        "*D. Lạm phát phi mã."
+      ],
+      "dap_an_dung": [
+        "*D. Lạm phát phi mã."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 15. Trong nền kinh tế, lạm phát phi mã sẽ làm cho đồng tiền",
+      "lua_chon": [
+        "A. giữ nguyên giá trị vốn có.",
+        "*B. mất giá một cách nhanh chóng.",
+        "C. không bị ảnh hưởng gì.",
+        "D. Bị khủng hoảng nghiêm trọng."
+      ],
+      "dap_an_dung": [
+        "*B. mất giá một cách nhanh chóng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 13: Loại hình thất nghiệp được phát sinh do sự dịch chuyển không ngừng của người lao động giữa các vùng, các loại công việc hoặc giữa các giai đoạn khác nhau trong cuộc sống được gọi là",
+      "lua_chon": [
+        "A. thất nghiệp cơ cấu.",
+        "*B. thất nghiệp tạm thời.",
+        "C. thất nghiệp chu kỳ.",
+        "D. thất nghiệp tự nguyện."
+      ],
+      "dap_an_dung": [
+        "*B. thất nghiệp tạm thời."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 14.  Loại hình thất nghiệp gắn liền với sự biến động cơ cấu kinh tế và sự thay đổi của công nghệ dẫn đến yêu cầu lao động có trình độ cao hơn, lao động không đáp ứng được sẽ bị đào thải là",
+      "lua_chon": [
+        "*A. thất nghiệp cơ cấu.",
+        "B. thất nghiệp tạm thời.",
+        "C. thất nghiệp tự nguyện.",
+        "D. thất nghiệp chu kỳ."
+      ],
+      "dap_an_dung": [
+        "*A. thất nghiệp cơ cấu."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 15.  Thất nghiệp để lại hậu quả nào sau đây đối với xã hội?",
+      "lua_chon": [
+        "A. Ảnh hưởng đến thu nhập cá nhân.",
+        "B. Suy giảm vai trò quản lý.",
+        "*C. Gia tăng tệ nạn xã hội.",
+        "D. Giảm cơ hội kinh doanh."
+      ],
+      "dap_an_dung": [
+        "*C. Gia tăng tệ nạn xã hội."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 16: Đối với nền kinh tế, khi lạm phát xảy ra khiến giá cả các yếu tố đầu vào tăng cao, chi phí sản xuất  tăng cao từ đó dẫn đến hậu quả các doanh nghiệp",
+      "lua_chon": [
+        "A. mở rộng quy mô sản xuất.",
+        "*B. thu hẹp quy mô sản xuất.",
+        "C. tăng cường tiềm lực tài chính.",
+        "D. đẩy mạnh xuất khẩu hàng hóa."
+      ],
+      "dap_an_dung": [
+        "*B. thu hẹp quy mô sản xuất."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 17: Đối với xã hội, khi lạm phát xảy ra sẽ khiến cho đời sống của nhân dân",
+      "lua_chon": [
+        "*A. gặp nhiều  khó khăn.",
+        "B. gặp thuận lợi.",
+        "C. được nâng cao.",
+        "D. được cải thiện."
+      ],
+      "dap_an_dung": [
+        "*A. gặp nhiều  khó khăn."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 18: Đối với người lao động, khi bị thất nghiệp sẽ ảnh hưởng trực tiếp đến yếu tố nào dưới đây?",
+      "lua_chon": [
+        "*A. Thu nhập.",
+        "B. Địa vị.",
+        "C. Thăng tiến.",
+        "D. Tuổi thọ."
+      ],
+      "dap_an_dung": [
+        "*A. Thu nhập."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 19: Về mặt xã hội, khi thất nghiệp tăng cao sẽ gián tiếp dẫn đến phát sinh nhiều",
+      "lua_chon": [
+        "A. công ty mới thành lập.",
+        "*B. tệ nạn xã hội tiêu cực.",
+        "C. hiện tượng xã hội tốt.",
+        "D. nhiều người thu nhập cao."
+      ],
+      "dap_an_dung": [
+        "*B. tệ nạn xã hội tiêu cực."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 20: Giá cả các yếu tố đầu vào tăng cao khiến chi phí sản xuất tăng buộc các doanh nghiệp phải thực hiện các giải pháp nào sau đây?",
+      "lua_chon": [
+        "*A. Giảm quy mô đầu tư, sản xuất.",
+        "B. Mở rộng sản xuất, kinh doanh.",
+        "C. Hợp tác sản xuất, kinh doanh.",
+        "D. Đóng cửa ngay lập tức."
+      ],
+      "dap_an_dung": [
+        "*A. Giảm quy mô đầu tư, sản xuất."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 21: Khi lạm phát tăng cao, kéo dài có thể gây ra những hậu quả nào dưới đây?.",
+      "lua_chon": [
+        "A.\tgiá cả hàng hóa bấp bênh.",
+        "*B.  khủng hoảng kinh tế, chính trị, xã hội.",
+        "C.\tHàng hóa được tạo ra với chất lượng cao.",
+        "D. Hàng hóa được tạo ra với chất lượng thấp."
+      ],
+      "dap_an_dung": [
+        "*B.  khủng hoảng kinh tế, chính trị, xã hội."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 22: Nội dung nào dưới đây thể hiện đầy đủ hậu quả của thất nghiệp đối với người lao động?",
+      "lua_chon": [
+        "*A. mất việc làm, mất thu nhập, kiến thức chuyên môn.",
+        "B. mất thu nhập, cuộc sống rất khó khan.",
+        "C. mất chức vụ, vị trí làm việc, cuộc sống tẻ nhạt.",
+        "D. mất công việc, mối quan hệ, cuộc sống kém ý nghĩa."
+      ],
+      "dap_an_dung": [
+        "*A. mất việc làm, mất thu nhập, kiến thức chuyên môn."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 23: Về mặt xã hội, khi thất nghiệp tăng cao sẽ lãng phí",
+      "lua_chon": [
+        "A. tài nguyên thiên nhiên.",
+        "*B. nguồn lực sản xuất.",
+        "C. các loại chi phí.",
+        "D. tín dụng thương mại."
+      ],
+      "dap_an_dung": [
+        "*B. nguồn lực sản xuất."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 24: Trong nền kinh tế thị trường khi xuất hiện tình trạng lạm phát phi mã sẽ gây ra hiện tượng như thế nào đối với nền kinh tế đó?",
+      "lua_chon": [
+        "*A. bất ổn nghiêm trọng.",
+        "B. hiệu ứng tích cực.",
+        "C. sụp đổ hoàn toàn.",
+        "D. cung tăng liên tục."
+      ],
+      "dap_an_dung": [
+        "*A. bất ổn nghiêm trọng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 25. Loại hình thất nghiệp gắn liền sự thay đổi của công nghệ dẫn đến yêu cầu lao động có trình độ cao hơn, lao động không đáp ứng yêu cầu sẽ bị đào thải là hình thức",
+      "lua_chon": [
+        "A. thất nghiệp tạm thời.",
+        "B. thất nghiệp tự nguyện.",
+        "*C. thất nghiệp cơ cấu.",
+        "D. thất nghiệp chu kỳ."
+      ],
+      "dap_an_dung": [
+        "*C. thất nghiệp cơ cấu."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 25. Tình trạng thất nghiệp phát sinh do sự dịch chuyển không ngừng của người lao động giữa các vùng, các loại công việc hoặc giữa các giai đoạn khác nhau trong cuộc sống được gọi là",
+      "lua_chon": [
+        "A. thất nghiệp cơ cấu.",
+        "B. thất nghiệp chu kì.",
+        "C. thất nghiệp tự nguyện.",
+        "*D. thất nghiệp tạm thời."
+      ],
+      "dap_an_dung": [
+        "*D. thất nghiệp tạm thời."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 26. Nội dung nào thể hiện hậu quả tình trạng thất nghiệp đối với các doanh nghiệp?",
+      "lua_chon": [
+        "A. Thu nhập giảm hoặc không có, đời sống gặp nhiều khó khăn.",
+        "*B. Lợi nhuận giảm hoặc thua lỗ, buộc phải thu hẹp quy mô sản xuất.",
+        "C. Lãng phí nguồn lực, làm cho nền kinh tế rơi vào tình trạng suy thoái.",
+        "D. Phát sinh nhiều tệ nạn xã hội; trật tự, an ninh xã hội không ổn định."
+      ],
+      "dap_an_dung": [
+        "*B. Lợi nhuận giảm hoặc thua lỗ, buộc phải thu hẹp quy mô sản xuất."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 27. Nội dung nào dưới đây không phản ánh đúng nguyên nhân chủ quan dẫn đến tình trạng thất nghiệp?",
+      "lua_chon": [
+        "A. Người lao động bị sa thải do vi phạm kỉ luật.",
+        "B. Thiếu chuyên môn, nghiệp vụ và kĩ năng làm việc.",
+        "C. Tự thôi việc do không hài lòng với công việc đang có.",
+        "*D. Nền kinh tế suy thoái nên doanh nghiệp thu hẹp sản xuất."
+      ],
+      "dap_an_dung": [
+        "*D. Nền kinh tế suy thoái nên doanh nghiệp thu hẹp sản xuất."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 28. Có nhiều nguyên nhân khách quan dẫn đến tình trạng thất nghiệp, ngoại trừ nguyên nhân",
+      "lua_chon": [
+        "A. sự mất cân đối giữa lượng cung và cầu trên thị trường lao động.",
+        "*B. người lao động tự thôi việc do không hài lòng với công việc đang có.",
+        "C. nền kinh tế suy thoái nên các doanh nghiệp thu hẹp quy mô sản xuất.",
+        "D. cơ cấu kinh tế chuyển dịch đặt ra yêu cầu mới về chất lượng lao động."
+      ],
+      "dap_an_dung": [
+        "*B. người lao động tự thôi việc do không hài lòng với công việc đang có."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 29. Học sinh, sinh viên cần tích cực học tập để  nắm vững các kiến thức cơ bản về nghề nghiệp, trau dồi các kĩ năng mềm, tìm hiểu, nắm được xu thế tuyển dụng của thị trường lao động, việc làm để có một tương lai\nĐể tìm được việc làm phù hợp với bản thân, học sinh cần trang bị cho mình những gì?",
+      "lua_chon": [
+        "A. Có thu nhập cao.",
+        "B. Không tẻ nhạt.",
+        "C. Không buồn chán.",
+        "*D. Không thất nghiệp."
+      ],
+      "dap_an_dung": [
+        "*D. Không thất nghiệp."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 30.   Kinh tế Việt Nam khởi sắc, tăng trưởng kinh tế đạt 7,08% so với 2017- mức tăng cao nhất trong 11 năm qua. Chất lượng tăng trưởng và đầu tư kinh doanh được cải thiện, doanh nghiệp thành lập mới tăng mạnh. Nền tảng kinh tế vĩ mô từng bước được củng cố và tăng cường, tỷ lệ thất nghiệp và thiếu việc làm có xu hướng giảm dần. Tỷ lệ thất nghiệp còn 2,19%.Từ năm 2020 đến 2021, do dịch Covid 19 ảnh hưởng nghiêm trọng đến mọi nền kinh tế, đặc biệt là trong quý 3 năm 2021 nhiều địa phương có vai trò trọng điểm về kinh tế phải thực hiện giãn cách xã hội kéo dài để phòng chống dịch bệnh, tỷ lệ thất nghiệp năm 2021 lên đến 3,2%, khiến cho tổng sản phẩm trong nước (GDP) năm 2021 giảm so với năm 2020. Thất nghiệp đã tác động đến nền kinh tế thế nào?",
+      "lua_chon": [
+        "A. Trật tự xã hội không ổn định.",
+        "*B. Tốc độ tăng trưởng kinh tế giảm.",
+        "C. Hiện tượng bãi công tăng lên.",
+        "D. Phát sinh nhiều tệ nạn xã hội."
+      ],
+      "dap_an_dung": [
+        "*B. Tốc độ tăng trưởng kinh tế giảm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 31. Loại hình thất nghiệp gắn liền với sự biến động cơ cấu kinh tế và sự thay đổi của công nghệ dẫn đến yêu cầu lao động có trình độ cao hơn, lao động không đáp ứng yêu cầu sẽ bị đào thải là hình thức",
+      "lua_chon": [
+        "*A. thất nghiệp cơ cấu.",
+        "B. thất nghiệp tạm thời.",
+        "C. thất nghiệp tự nguyện.",
+        "D. thất nghiệp chu kỳ."
+      ],
+      "dap_an_dung": [
+        "*A. thất nghiệp cơ cấu."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 32. Để tìm được việc làm phù hợp với bản thân, học sinh cần trang bị cho mình những gì?",
+      "lua_chon": [
+        "A. Kiến thức chuyên ngành về kinh tế.",
+        "B. Chỉ ưu tiên học về các chuyên ngành của mình.",
+        "C. Không quan tâm đến xu thế của thị trường việc làm.",
+        "*D. Kiến thức cơ bản về nghề nghiệp, trau dồi kĩ năng, nắm được xu thế của thị trường việc làm."
+      ],
+      "dap_an_dung": [
+        "*D. Kiến thức cơ bản về nghề nghiệp, trau dồi kĩ năng, nắm được xu thế của thị trường việc làm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 33. Về mặt xã hội, khi thất nghiệp tăng cao sẽ gián tiếp dẫn đến phát sinh nhiều",
+      "lua_chon": [
+        "A. công ty mới thành lập.",
+        "*B. tệ nạn xã hội tiêu cực.",
+        "C. hiện tượng xã hội tốt.",
+        "D. nhiều người thu nhập cao."
+      ],
+      "dap_an_dung": [
+        "*B. tệ nạn xã hội tiêu cực."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 1: Hoạt động tạo ra thu nhập và không bị pháp luật cấm, có ý nghĩa quan trọng đối với mỗi người, giúp duy trì và cải thiện cuộc sống được gọi là.",
+      "lua_chon": [
+        "*A.việc làm.",
+        "B.lao động.",
+        "C.tiêu thụ.",
+        "D.mua bán."
+      ],
+      "dap_an_dung": [
+        "*A.việc làm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 2:  Hoạt động có mục đích, có ý thức của con người nhằm tạo ra các sản phẩm phục vụ cho các nhu cầu đời sống của xã hội được gọi là",
+      "lua_chon": [
+        "*A. lao động.",
+        "B. tiếp cận.",
+        "C. quảng cáo.",
+        "D.tiếp thị."
+      ],
+      "dap_an_dung": [
+        "*A. lao động."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 3 : Vì sao lao động được coi là yếu tố đầu vào trong hoạt động lao động sản xuất?",
+      "lua_chon": [
+        "*A. Lao động là nguồn lực sản xuất chính và không thể thiếu được trong các hoạt động kinh tế.",
+        "B. Vì người lao động luôn giữ một vai trò quan trọng trên thị trường lao động.",
+        "C. Vì người lao động được được coi như là một yếu tố quan trọng.",
+        "D. Vì việc làm chỉ có thể hoàn thành nếu như có người lao động giải quyết."
+      ],
+      "dap_an_dung": [
+        "*A. Lao động là nguồn lực sản xuất chính và không thể thiếu được trong các hoạt động kinh tế."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 4:  Trong hoạt động sản xuất, lao động được coi là",
+      "lua_chon": [
+        "*A. yếu tố đầu vào, ảnh hưởng tới chi phí sản xuất.",
+        "B. yếu tố đầu ra, ảnh hưởng đến lợi nhuận của doanh nghiệp.",
+        "C. yếu tố đầu vào, không có ảnh hưởng tới chi phí sản xuất.",
+        "D. yếu tố đầu ra, không có ảnh hưởng gì đến chất lượng sản phẩm"
+      ],
+      "dap_an_dung": [
+        "*A. yếu tố đầu vào, ảnh hưởng tới chi phí sản xuất."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 5: Thị trường lao động được cấu thành bởi 3 yếu tố là:",
+      "lua_chon": [
+        "A. cung, cầu và năng suất lao động.",
+        "*B. cung, cầu và giá cả sức lao động.",
+        "C. cung, cầu và chất lượng lao động.",
+        "D. cung, cầu và trình độ chuyên môn."
+      ],
+      "dap_an_dung": [
+        "*B. cung, cầu và giá cả sức lao động."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 6: Các xu hướng tuyển dụng trên thị trường lao động thường gắn liền với nội dung gì dưới đây?",
+      "lua_chon": [
+        "*A. Chiến lược, chủ trương, chính sách phát triển kinh tế - xã hội của Đảng và Nhà nước.",
+        "B. Các ý tưởng tiềm năng của các nhà sử dụng lao động thành công.",
+        "C. Các chủ trương, chính sách của doanh nghiệp.",
+        "D. Các chính sách phát triển của các tập đoàn lớn, có tầm ảnh hưởng rộng."
+      ],
+      "dap_an_dung": [
+        "*A. Chiến lược, chủ trương, chính sách phát triển kinh tế - xã hội của Đảng và Nhà nước."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 7: Trong nền kinh tế thị trường, việc làm.",
+      "lua_chon": [
+        "A. tồn tại dưới nhiều hình thức, bị giới hạn về không gian và thời gian.",
+        "B. chỉ tồn tại dưới một hình thức duy nhất và bị giới hạn về không gian.",
+        "*C. tồn tại dưới nhiều hình thức; không giới hạn về không gian, thời gian.",
+        "D. chỉ tồn tại dưới một hình thức duy nhất, không giới hạn về thời gian."
+      ],
+      "dap_an_dung": [
+        "*C. tồn tại dưới nhiều hình thức; không giới hạn về không gian, thời gian."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 8:  Việc làm là.",
+      "lua_chon": [
+        "A. tất cả những hoạt động có mục đích, có ý thức của con người.",
+        "*B. hoạt động lao động tạo ra thu nhập và không bị pháp luật cấm.",
+        "C. tất cả những hoạt động lao động đem lại thu nhập cho con người.",
+        "D. những hoạt động lao động tạo ra thu nhập bị pháp luật nghiêm cấm."
+      ],
+      "dap_an_dung": [
+        "*B. hoạt động lao động tạo ra thu nhập và không bị pháp luật cấm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 9. Thị trường lao động được cấu thành bởi mấy yếu tố?",
+      "lua_chon": [
+        "*A. 3 yếu tố.",
+        "B. 4 yếu tố.",
+        "C. 5 yếu tố.",
+        "D. 6 yếu tố."
+      ],
+      "dap_an_dung": [
+        "*A. 3 yếu tố."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 10. Khai thác thông tin dưới đây và cho biết: nhận xét nào đúng về tình hình cung - cầu lao động trên thị trường ở Việt Nam năm 2021?\nThông tin.Năm 2021, lực lượng lao động từ 15 tuổi trở lên của Việt Nam đạt 50,6 triệu người. Trong đó, lao động đang làm việc trong các ngành kinh tế là 49,1 triệu người. Tỉ lệ thất nghiệp của lực lượng lao động trong độ tuổi ước tính là 3,20%, tỉ lệ thiếu việc làm của lao động trong độ tuổi là 3,10%.",
+      "lua_chon": [
+        "A. Nguồn cung lao động nhỏ hơn so với nhu cầu tuyển dụng việc làm.",
+        "B. Có sự cân bằng giữa nguồn cung lao động với nhu cầu tuyển dụng.",
+        "*C. Nguồn cung lao động lớn hơn so với nhu cầu tuyển dụng việc làm."
+      ],
+      "dap_an_dung": [
+        "*C. Nguồn cung lao động lớn hơn so với nhu cầu tuyển dụng việc làm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 11. Hoạt động lao động tạo ra thu nhập và không bị pháp luật cấm được gọi là",
+      "lua_chon": [
+        "A. lao động.",
+        "B. làm việc.",
+        "*C. việc làm.",
+        "D. khởi nghiệp.",
+        "D. Cán cân cung - cầu lao động được giữ ở mức cân bằng và ổn định."
+      ],
+      "dap_an_dung": [
+        "*C. việc làm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 12. Thị trường việc làm kết nối cung - cầu lao động trên thị trường thông qua nhiều hình thức, ướp.",
+      "lua_chon": [
+        "A. các phiên giao dịch việc làm.",
+        "B. các trung tâm môi giới và giới thiệu việc làm.",
+        "*C. mở các trung tâm dạy nghề và giáo dục thường xuyên.",
+        "D. thông tin tuyển dụng trên các phương tiện thông tin đại chúng."
+      ],
+      "dap_an_dung": [
+        "*C. mở các trung tâm dạy nghề và giáo dục thường xuyên."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 13. Khi khả năng cung ứng lao động lớn hơn khả năng tạo việc làm sẽ dẫn đến tình trạng nào?",
+      "lua_chon": [
+        "*A. Gia tăng tình trạng thất nghiệp.",
+        "B. Thiếu hụt lực lượng lao động.",
+        "C. Cả hai phương án A, B đều đúng.",
+        "D. Cả hai phương án A, B đều sai."
+      ],
+      "dap_an_dung": [
+        "*A. Gia tăng tình trạng thất nghiệp."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 14. Thông qua các dịch vụ kết nối nhà tuyển dụng và người lao động, thị trường việc làm giúp cho thị trường lao động nhanh chóng đạt đến trạng thái.",
+      "lua_chon": [
+        "A. thiếu hụt lực lượng lao động.",
+        "B. dư thừa lực lượng lao động.",
+        "C. chênh lệch cung - cầu lao động.",
+        "*D. cân bằng cung - cầu lao động."
+      ],
+      "dap_an_dung": [
+        "*D. cân bằng cung - cầu lao động."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 15.  Một trong những xu hướng tuyển dụng lao động của thị trường ở Việt Nam hiện nay là",
+      "lua_chon": [
+        "A. gia tăng tuyển dụng các ngành/ nghề lao động giản đơn.",
+        "B. xu hướng lao động “phi chính thức\" sụt giảm mạnh mẽ.",
+        "*C. Chuyển dịch nghề nghiệp gắn với phát triển kỹ năng mềm.",
+        "D. Giảm số lượng lao động trên các nền tảng công nghệ."
+      ],
+      "dap_an_dung": [
+        "*C. Chuyển dịch nghề nghiệp gắn với phát triển kỹ năng mềm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 16: Việc người sử dụng lao động và người lao động thoả thuận về mức lương, điều kiện làm việc, chế độ ưu đãi,... và các thoả thuận khác đã được ký kết, xác lập hợp đồng lao động là.",
+      "lua_chon": [
+        "A. lao động.",
+        "*B. việc làm.",
+        "C. giao kết.",
+        "D. hợp tác."
+      ],
+      "dap_an_dung": [
+        "*B. việc làm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 17: Nơi diễn ra các quan hệ thoả thuận giữa người sử dụng lao động và người lao động về tiền lương, điều kiện làm việc trên cơ sở hợp đồng lao động được gọi là.",
+      "lua_chon": [
+        "A. thị trường việc làm.",
+        "*B. thị trường lao động.",
+        "C. trung tâm giới thiệu việc làm.",
+        "D. trung tâm môi giới việc làm."
+      ],
+      "dap_an_dung": [
+        "*B. thị trường lao động."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 18:   Đoạn thông tin dưới đây cho biết điều gì về xu hướng tuyển dụng lao động tại Việt Nam hiện nay?\n Năm 2018, lao động trong khu vực nông, lâm, thuỷ sản chiếm 37,7%, giảm 24,5% so với năm 2000. Trong khi đó, khu vực công nghiệp, xây dựng tăng từ 13% tới 26,7% và khu vực dịch vụ tăng từ 24,8% tới 35,6% so với cùng thời kì. Số liệu còn cho thấy đã có sự chuyển dịch của lao động khu vực nông, lâm, thuỷ sản sang khu vực công nghiệp, xây dựng và khu vực dịch vụ; đưa tỉ trọng lao động khu vực công nghiệp và xây dựng lên 26,7%, khu vực dịch vụ lên 35,6%, ở mức cao nhất kể từ năm 2000 đến nay.",
+      "lua_chon": [
+        "*A. Lao động  nông nghiệp giảm, lao động công nghiệp,  dịch vụ tăng.",
+        "B. Lao động chưa qua đào tạo tăng, chiếm ưu thế so với trước đây.",
+        "C. Tốc độ tăng lao động trong nganh dịch vụ nhanh hơn so với công nghiệp.",
+        "D. Lao động trong công nghiệp, dịch vụ giảm; lao động nông nghiệp tăng."
+      ],
+      "dap_an_dung": [
+        "*A. Lao động  nông nghiệp giảm, lao động công nghiệp,  dịch vụ tăng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 19: Đoạn thông tin dưới đây cho biết điều gì về xu hướng tuyển dụng lao động tại Việt Nam hiện nay?\nTrong quý I năm 2022, trong tổng số 50 triệu lao động có việc làm tại Việt Nam, lao động trong khu vực dịch vụ chiếm tỉ trọng 38,7%, tương đương 19,4 triệu người, lao động trong khu vực công nghiệp và xây dựng chiếm tỉ trọng 33,5%, tương dương 16,8 triệu người, lao động trong khu vực nông, lâm nghiệp và thuỷ sản chiếm tỉ trọng 27,8%, tương đương 13,9 triệu người. So với quý trước và cùng kì năm trước, lao động trong khu vực nông, lâm nghiệp và thuỷ sản đều giảm lần lượt là 426,8 nghìn người và 192,2 nghìn người; lao động trong khu vực công nghiệp và xây dựng giảm 82,7 nghìn người so với quý trước nhưng tăng 661,3 nghìn người so với cùng kì năm trước; lao động trong ngành dịch vụ tăng mạnh so với quý trước (gần 1,5 triệu người) nhưng vẫn thấp hơn so với cùng kì năm trước 336,8 nghìn người.",
+      "lua_chon": [
+        "A. Lao động  nông nghiệp giảm, lao động công nghiệp,  dịch vụ tăng.",
+        "B. Lao động chưa qua đào tạo tăng, chiếm ưu thế so với trước đây.",
+        "*C. Tốc độ tăng lao động trong nganh dịch vụ nhanh hơn so với công nghiệp.",
+        "D. Lao động trong công nghiệp, dịch vụ giảm; lao động nông nghiệp tăng."
+      ],
+      "dap_an_dung": [
+        "*C. Tốc độ tăng lao động trong nganh dịch vụ nhanh hơn so với công nghiệp."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 20: Đọc thông tin và trả lời câu hỏi. \nTại Thành phố H, nhu cẩu tuyền dụng lao động cuối năm ở một số ngành nghề đang sôi động. Nhiều doanh nghiệp trên địa bàn cho biết họ gặp nhiều khó khăn trong tuyển dụng lao động. Công ty cổ phần Sản xuất Container đang cần tuyền 650 lao động, trong đó có 100 lao động phổ thông, 500 thợ hàn, thợ cơ khí,... với mức lương cơ bản từ 6 đến 18 triệu đồng. Tuy nhiên, sau ba tháng nhiều hồ sơ ứng tuyển không đạt yêu cầu. Công ty N cũng đang thông báo tuyển 127 lao động cho các vị trí kĩ thuật viên: thuỷ lực, cơ khí, sơn dầu, máy lạnh, cửa cuốn, lao động phổ thông, với nhiều chế độ ưu đãi vượt trội nhưng vẫn tìm không đủ người.Thông tin trên phản ánh đúng xu hướng tuyển dụng lao động nào sau đây ở Việt Nam?",
+      "lua_chon": [
+        "*A. Lao động trong ngành công nghiệp tăng.",
+        "B. Lao động trong ngành dịch vụ tăng.",
+        "C. Lao động trong ngành nông nghiệp tăng.",
+        "D. Lao động trong khu vực công tăng."
+      ],
+      "dap_an_dung": [
+        "*A. Lao động trong ngành công nghiệp tăng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 21: Đọc thông tin và trả lời câu hỏi \nTheo bản tin thị trường lao động Việt Nam quý III năm 2022: Năm nhóm ngành có nhu cầu tuyển dụng nhiều nhất: công nghiệp chế tạo; thông tin và truyền thông; bán buôn, bán lẻ, sửa chữa ô tô, mô tô, xe máy và xe có động cơ khác; hoạt động tài chính, ngân hàng và bảo hiểm; hoạt động chuyên môn khoa học và công nghệ. Năm nghề có nhu cầu tuyển dụng nhiều nhất: tài chính, kế toán, nhân viên phần mềm, ngân hàng, marketing. Năm nghề người lao động đi tìm việc nhiều nhất: lao động kĩ thuật trong công nghiệp, hành chính, bán hàng trong lĩnh vực bất động sản, tiếp thị kĩ thuật số bán hàng, y tế và chăm sóc sức khoẻ. Dự báo nhu cầu việc làm sẽ tăng ở một số ngành: sản xuất phương tiện vận tải, sản xuất sản phẩm điện tử. Xu hướng tuyển dụng lao động trong thông tin trên là.",
+      "lua_chon": [
+        "*A. Lao động trong các ngành công nghiệp và dịch vụ tăng.",
+        "B. Lao động trong các ngành nông nghiệp và công nghiệp tăng.",
+        "C. Lao động trong ngành dịch vụ và nông nghiệp tăng.",
+        "D. Lao động trong ngành dịch vụ và công nghiệp giảm.\n",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "dap_an_dung": [
+        "*A. Lao động trong các ngành công nghiệp và dịch vụ tăng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 24. Theo bản tin thị trường lao động Việt Nam quý III năm 2022: Năm nhóm ngành có nhu cầu tuyển dụng nhiều nhất: công nghiệp chế tạo; thông tin và truyền thông; bán buôn, bán lẻ, sửa chữa ô tô, mô tô, xe máy và xe có động cơ khác; hoạt động tài chính, ngân hàng và bảo hiểm; hoạt động chuyên môn khoa học và công nghệ. Năm nghề có nhu cầu tuyển dụng nhiều nhất: tài chính, kế toán, nhân viên phần mềm, ngân hàng, marketing. Năm nghề người lao động đi tìm việc nhiều nhất: lao động kĩ thuật trong công nghiệp, hành chính, bán hàng trong lĩnh vực bất động sản, tiếp thị kĩ thuật số bán hàng, y tế và chăm sóc sức khoẻ. Dự báo nhu cầu việc làm sẽ tăng ở một số ngành: sản xuất phương tiện vận tải, sản xuất sản phẩm điện tử. Xu hướng tuyển dụng lao động trong thông tin trên là? Thông tin trên phản ánh không đúng xu thế tuyển dụng lao động nào dưới đây?",
+      "lua_chon": [
+        "*A. Lao động chưa qua đào tạo ngày một tăng.",
+        "B. Lao động được đào tạo ngày một tăng.",
+        "C. Lao động chưa qua đào tạo chiếm ưu thế.",
+        "D. Lao động ở lĩnh vực nông nghiệp tăng"
+      ],
+      "dap_an_dung": [
+        "*A. Lao động chưa qua đào tạo ngày một tăng."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 25:  Thông tin thị trường lao động và dịch vụ việc làm có vai trò.",
+      "lua_chon": [
+        "A. giúp các doanh nghiệp điều tiết lực lượng lao động.",
+        "B. nâng cao kiến thức cho người lao động và người sử dụng lao động.",
+        "C. là cơ sở để người sử lao động tìm được việc làm phù hợp cho mình.",
+        "*D. là cầu nối trong việc gắn kết thị trường lao động với thị trường việc làm."
+      ],
+      "dap_an_dung": [
+        "*D. là cầu nối trong việc gắn kết thị trường lao động với thị trường việc làm."
+      ],
+      "type": "multiple_choice"
+    },
+    {
+      "cau_hoi": "Câu 1:  Đọc thông tin và lựa chọn đáp án đúng hoặc sai: \nHiệp hội các nhà sản xuất chăn ga gối đệm dự báo nhu cầu của người tiêu dùng trong mùa đông tới sẽ tăng cao và khuyến nghị các cơ sở sản xuất cần đẩy mạnh sản xuất trước nhiều tháng. Tuy nhiên khi bước vào mùa đông, do sự biến đổi của thời tiết, nhiệt độ tăng cao, cả mùa đông chỉ có một vài đợt rét nhỏ nên nhu cầu về sản phẩm rất hạn chế, hàng tồn kho nhiều, các nhà sản xuất phải hạ giá bán. Vì vậy gia đình bác A đã mua được một số sản phẩm chất lượng tốt, mẫu mã đẹp, giá cả hợp lí.",
+      "lua_chon": [
+        "*a) Gia đình bác A đã vận dụng quan hệ cung cầu trong trường hợp cung lớn hơn cầu, giá giảm.",
+        "*b)  Quan hệ cung cầu cho người tiêu dùng lựa chọn mua hàng hóa phù hợp với nhu cầu và đem lại hiệu quả kinh tế.",
+        "c)  Sự biến động về giá cả hàng hóa trên thị trường đã làm hạn chế nhu cầu thiết yếu của người tiêu dùng.",
+        "d)  Nhà sản xuất gối nệm phải giảm giá bán do nhu cầu người mua tăng khi bước vào mùa đông."
+      ],
+      "dap_an_dung": [
+        "*a) Gia đình bác A đã vận dụng quan hệ cung cầu trong trường hợp cung lớn hơn cầu, giá giảm.",
+        "*b)  Quan hệ cung cầu cho người tiêu dùng lựa chọn mua hàng hóa phù hợp với nhu cầu và đem lại hiệu quả kinh tế."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 2:  Đọc thông tin và lựa chọn đáp án đúng hoặc sai: \nNhiều bà nội trợ cũng cho biết, sữa chua đang là mặt hàng luôn có trong thực đơn yêu thích của nhiều trẻ nhỏ trong các gia đình. Từ nhu cầu trên, thị trường sữa chua ngày càng đa dạng mới nhiều mẫu mã, chủng loại. Nếu trước đây trong các cửa hàng tạp hóa, siêu thị chỉ có 2-3 loại sữa chua với mẫu mã đơn giản, thì giờ đây số lượng này lên tới 20-30 loại. Cùng với thiết kế mẫu mã bắt mắt, giá sữa chua cũng hấp dẫn hơn so với trước kia, dao động từ 13.500 – 40.000đ một lốc (4 hộp).",
+      "lua_chon": [
+        "a) Do lượng cung sữa chua nhiều nên nhu cầu về sữa nói chung và mặt hàng sữa chua tăng mạnh.",
+        "b) Giá sữa chua trên thị trường giảm làm cho lượng cầu về sữa chua giảm theo.",
+        "*c)  Lượng cung, các loại mẫu mã sữa chua tăng là do lượng cầu sữa chua ngày càng tăng.",
+        "*d)  Giá sữa chua có xu hướng giảm làm cho lượng cung sữa chua trên thị trường ổn định."
+      ],
+      "dap_an_dung": [
+        "*c)  Lượng cung, các loại mẫu mã sữa chua tăng là do lượng cầu sữa chua ngày càng tăng.",
+        "*d)  Giá sữa chua có xu hướng giảm làm cho lượng cung sữa chua trên thị trường ổn định."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 3. Đọc đoạn thông tin sau:          \n Cuộc chạy đua giành thị phần nước mắm đang trở nên gay gắt khi các hãng nước mắm truyền thống tiến hành thay đổi mẫu mã, khẩu vị, trong khi thương hiệu lớn tiếp tục gia tăng đầu tư.  Trước năm 2002, trên thị trường chỉ tồn tại khái niệm nước mắm truyền thống với 2 thành phần chính là cá và muối. Trong khi nước mắm được sản xuất trên dây chuyền công nghiệp lại có thành phần cá ít hơn, đồng thời pha chế thêm một số phụ gia cần thiết. Hiện nay, nhiều thương hiệu nước mắm liên tục ra đời tạo nên một làn sóng mới trên thị trường khi thị phần gia tăng nhanh chóng nhờ quy mô sản xuất, lợi thế giá rẻ và chi phí quảng cáo lớn, rầm rộ, cùng với đội ngũ tiếp thị hùng hậu.",
+      "lua_chon": [
+        "*a) Các doanh nghiệp sản xuất nước mắm có nhiều hoạt động đấu tranh giành thị phần đó chính là sự cạnh tranh.",
+        "*b) Sự ganh đua của các doanh nghiệp nước mắm mục đích là vì lợi nhuận.",
+        "c) Cạnh tranh giữa các doanh nghiệp nước mắm là sự chia sẻ lợi nhuận cho nhau.",
+        "d)  Mở rộng quy mô sản xuất, quảng cáo rầm rộ chính là hoạt động cạnh không tranh lành mạnh của các doanh nghiệp sản xuất nước mắm."
+      ],
+      "dap_an_dung": [
+        "*a) Các doanh nghiệp sản xuất nước mắm có nhiều hoạt động đấu tranh giành thị phần đó chính là sự cạnh tranh.",
+        "*b) Sự ganh đua của các doanh nghiệp nước mắm mục đích là vì lợi nhuận."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 4. Đọc đoạn thông tin sau:           \nTừ tháng 4-2023 đến nay, Công ty CP Di chuyển Xanh và Thông minh (GSM) đã triển khai rầm rộ việc đưa ô tô điện vào khai thác trong lĩnh vực taxi. Hãng taxi điện \"phủ sóng\" tại các thành phố lớn, khu du lịch với 2.500 chiếc chỉ sau 5 tháng hoạt động, tương đương số lượng xe của các hãng taxi lớn đã có mặt trên thị trường hàng chục năm qua. Nhiều hãng vận tải khác như Sun Taxi, Lado Taxi... thời gian qua cũng đầu tư mạnh mua xe điện để thay thế dần xe xăng với mục đích tăng thêm trải nghiệm cho khách hàng và bắt kịp xu thế. Các hãng này cho biết đã nhận được phản hồi khá tích cực từ phía khách hàng nhờ giá cước không quá cao, không phải trả thêm phụ phí như các ứng dụng gọi xe công nghệ, xe chạy êm...",
+      "lua_chon": [
+        "*a) Sự ra đời hãng xe điện tạo ra sự cạnh tranh giữa các hãng taxi.",
+        "*b) Cạnh tranh luôn tồn tại giữa các hãng taxi.",
+        "*c) Sự cạnh tranh giữa các hãng taxi mang lại nhiều lợi ích cho khách hàng.",
+        "d) Cạnh tranh giữa các hãng taxi  không mang lại lợi ích cho nền kinh tế."
+      ],
+      "dap_an_dung": [
+        "*a) Sự ra đời hãng xe điện tạo ra sự cạnh tranh giữa các hãng taxi.",
+        "*b) Cạnh tranh luôn tồn tại giữa các hãng taxi.",
+        "*c) Sự cạnh tranh giữa các hãng taxi mang lại nhiều lợi ích cho khách hàng."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 5. Năm 1985, chỉ số CPI tăng đến 92%, năm 1986 lên tới 775%, nền kinh tế bước vào thời kỳ lạm phát dữ dội với tỷ lệ tăng 3 con số kéo dài trong 2 năm tiếp theo. Phân phối lưu thông trong tình trạng rối ren, diễn biến theo chiều hướng xấu. Giá cả biến động  phức tạp. Đồng tiền mất giá nhanh, tâm lý người tiêu dùng không muốn giữ tiền mặt, tìm cách mua hàng dự trữ để đảm bảo, làm tăng thêm tình trạng căng thẳng về hàng hóa vốn đã thiếu so với nhu cầu.",
+      "lua_chon": [
+        "*a) Mức độ lạm phát nói trên thể hiện lạm phát phi mã.",
+        "b) Giá cả trong thời kỳ lạm phát phi mã giữ ổn định.",
+        "*c) Lạm phát phi mã làm cho đồng tiền bị mất giá.",
+        "d)  Tình hình hàng hóa trong thời kỳ 1985- 1986 được bình ổn."
+      ],
+      "dap_an_dung": [
+        "*a) Mức độ lạm phát nói trên thể hiện lạm phát phi mã.",
+        "*c) Lạm phát phi mã làm cho đồng tiền bị mất giá."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 6. Cuối năm 2010, lạm phát hai con số kéo dài 13 tháng đến tháng 10.2011 khiến CPI tăng 11,75% năm 2010 và 18,13% năm 2011. Trước tình hình đó, Chính phủ và các cấp, các ngành đã triển khai quyết liệt đồng bộ các giải pháp kiềm chế và kiểm soát lạm phát nên chỉ số giá tiêu dùng đã giảm xuống mức một con số (6,81% năm 2012; 6,04% năm 2013...). Đẩy lùi lạm phát cao trong những năm qua là một trong những nhân tố quan trọng góp phần đưa kinh tế vĩ mô Việt Nam đi dần vào thế ổn định.",
+      "lua_chon": [
+        "*a) Lạm phát vừa phải sẽ kích thích sản xuất kinh doanh phát triển.",
+        "*b) Chính phủ đóng vai trò quan trọng trong việc kiềm chế và kiểm soát lạm phát.",
+        "c)  Nền kinh tế sẽ kém phát triển nếu giảm chỉ số giá tiêu dùng.",
+        "d)  Lạm phát năm 2011 là thể hiện mức độ lạm phát vừa phải."
+      ],
+      "dap_an_dung": [
+        "*a) Lạm phát vừa phải sẽ kích thích sản xuất kinh doanh phát triển.",
+        "*b) Chính phủ đóng vai trò quan trọng trong việc kiềm chế và kiểm soát lạm phát."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 7: Đọc thông tin và lựa chọn đáp án đúng hoặc sai: \nTham gia Ngày hội hướng nghiệp của trường, bạn B được chuyên gia tư vấn về việc chuẩn bị và lựa chọn nghề nghiệp. Trong những thập niên đầu của cuộc Cách mạng công nghiệp lần thứ tư, nhiều ngành nghề đào tạo cũng như nhu cầu của thị trường lao động có rất nhiều chuyển biến so với trước đây. Nhiều công việc truyền thống sẽ biến mất hoặc bị thay thế bởi máy móc, đồng thời, sẽ có nhiều công việc mới xuất hiện. Người lao động cần phải có những kiến thức, kĩ năng thích ứng mới tìm được việc làm phù hợp và thu nhập cao. Muốn thành công và hạnh phúc, học sinh cần có trách nhiệm không ngừng hoàn thiện bản thân khi tham gia thị trường lao động, tìm hiểu, lựa chọn được nghề nghiệp, việc làm phù hợp, có năng lực thích ứng trong môi trường, hoàn cảnh sống luôn biến đổi.",
+      "lua_chon": [
+        "a) Bạn B đã tham gia vào thị trường lao động trong Ngày hội hướng nghiệp của trường.",
+        "*b) Tham gia Ngày hội hướng nghiệp của trường, bạn B đã xác định được trách nhiệm của bản thân trong việc tham gia vào thị trường lao động và việc làm trong tương lai.",
+        "c) Xu hướng tuyển dụng của thị trường lao động trong cuộc cách mạng lần thứ tư chú trọng vào số lượng lao động.",
+        "*d)  Cuộc cách mạng lần thứ tư tác động mạnh mẽ đến thị trường lao động và việc làm."
+      ],
+      "dap_an_dung": [
+        "*b) Tham gia Ngày hội hướng nghiệp của trường, bạn B đã xác định được trách nhiệm của bản thân trong việc tham gia vào thị trường lao động và việc làm trong tương lai.",
+        "*d)  Cuộc cách mạng lần thứ tư tác động mạnh mẽ đến thị trường lao động và việc làm."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 8: Đọc thông tin và lựa chọn đáp án đúng hoặc sai: \nQuá trình hội nhập quốc tế và yêu cầu chuyển đổi số nền kinh tế đã thúc đẩy các doanh nghiệp phải không ngừng đổi mới, sáng tạo. Nhiều doanh nghiệp đã đẩy mạnh tự động hoá, chuyển hướng sản xuất hiện đại, cung ứng đáp ứng nhu cầu ngày càng cao của thị trường. Do đó, các doanh nghiệp tập trung nhiều hơn vào việc tuyển dụng lao động chất lượng cao. Họ ưu tiên tuyển dụng lao động đã qua đào tạo, có chuyên môn nghiệp vụ, kĩ năng và thái độ làm việc tốt. \nSau khi tìm hiểu kĩ thông tin tuyển dụng tại các doanh nghiệp, anh P quyết định nộp hồ sơ vào doanh nghiệp X và được tuyển dụng vào làm việc tại phòng bán hàng của doanh nghiệp với mức lương khởi điểm 10 triệu đồng/tháng.",
+      "lua_chon": [
+        "a) Anh P làm việc tại phòng bán hàng của doanh nghiệp X không phải là việc làm.",
+        "b) Các doanh nghiệp đẩy mạnh tự động hóa nên nhu cầu tuyển dụng lao động giảm xuống.",
+        "c) Yêu cầu chuyển đổi số của nền kinh tế không phù hợp với xu hướng tuyển dụng lao động của thị trường.",
+        "*d) Anh P đã được tham gia vào thị trường lao động và thị trường việc làm."
+      ],
+      "dap_an_dung": [
+        "*d) Anh P đã được tham gia vào thị trường lao động và thị trường việc làm."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 9. Trong quý I năm 2022, trong tổng số 50,0 triệu lao động có việc làm tại Việt Nam, lao động trong khu vực dịch vụ chiếm tỉ trọng 38,7%, tương đương 19,4 triệu người, lao động trong khu vực công nghiệp và xây dựng chiếm tỉ trọng 33,5%, tương đương 16,8 triệu người, lao động trong khu vực nông, lâm nghiệp và thuỷ sản chiếm tỉ trọng 27,8%, tương đương 13,9 triệu người. So với quý trước và cùng kì năm trước, lao động trong khu vực nông, lâm nghiệp và thuỷ sản đều giảm lần lượt là 426,8 nghìn người và 192,2 nghìn người; lao động trong khu vực công nghiệp và xây dựng giảm 82,7 nghìn người so với quý trước nhưng tăng 661,3 nghìn người so với cùng kì năm trước; lao động trong ngành dịch vụ tăng mạnh so với quý trước (gần 1,5 triệu người) nhưng vẫn thấp hơn so với cùng kì năm trước 336,8 nghìn người.",
+      "lua_chon": [
+        "a) Xu hướng lao động trong khu vực nông nghiệp đang tăng nhanh.",
+        "b) Lao động trong khu vực công nghiệp đang chiếm tỉ trọng cao nhất.",
+        "*c) Lao động trong khu vực nông, lâm nghiệp và thuỷ sản giảm.",
+        "*d) So với khu vực công nghiệp và xây dựng, lao động trong ngành dịch vụ đang tăng mạnh là phù hợp với xu hướng tuyển dụng lao động của thị trường."
+      ],
+      "dap_an_dung": [
+        "*c) Lao động trong khu vực nông, lâm nghiệp và thuỷ sản giảm.",
+        "*d) So với khu vực công nghiệp và xây dựng, lao động trong ngành dịch vụ đang tăng mạnh là phù hợp với xu hướng tuyển dụng lao động của thị trường."
+      ],
+      "type": "true_false"
+    },
+    {
+      "cau_hoi": "Câu 10. Sáng ngày 19/9, tại Hà Nội, Trung tâm Dịch vụ việc làm Hà Nội phối hợp với Trung tâm Dịch vụ việc làm các tỉnh Bắc Giang, Bắc Ninh, Ninh Bình, Thái Nguyên, Lai Châu, Bắc Kạn, Lạng Sơn tổ chức phiên giao dịch việc làm trực tuyến. Tại phiên giao dịch, có 83 doanh nghiệp tham gia với 11.523 chỉ tiêu việc làm tuyển dụng. Trong số 11.523 chỉ tiêu việc làm tuyển dụng, các vị trí việc làm có thu nhập từ 15 triệu đồng trở lên chiếm tỉ lệ 19%, các vị trí việc làm có thu nhập từ 10 triệu đồng đến dưới 15 triệu đồng chiếm tỉ lệ 37%, các vị trí việc làm có thu nhập dưới 7 triệu đồng chiếm tỉ lệ 16% và các vị trí tuyển dụng lương theo thoả thuận chiếm tỉ lệ 10%.",
+      "lua_chon": [
+        "a) Những thông tin trên là biểu hiện của thị trường lao động.",
+        "b) Các doanh nghiệp tham gia trong phiên giao dịch việc làm là những chủ thể tìm việc làm.",
+        "*c) Phiên giao dịch việc làm đã cung cấp cụ thể về tiền lương ở các vị trí việc làm khác nhau.",
+        "d) Thông tin trên chưa thể hiện mối quan hệ giữa thị trường lao động và thị trường việc làm."
+      ],
+      "dap_an_dung": [
+        "*c) Phiên giao dịch việc làm đã cung cấp cụ thể về tiền lương ở các vị trí việc làm khác nhau."
+      ],
+      "type": "true_false"
+    }
+  ]
+};
+        
+        
+                const backgroundMusic = new Audio('./sounds/background.mp3');
+                const correctAnswerSound = new Audio('./sounds/correct.mp3');
+                const incorrectAnswerSound = new Audio('./sounds/incorrect.mp3');
+            
+
+        const ICONS = {
+            volumeOn: '<svg viewBox="0 0 24 24"><path d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z"></path></svg>',
+            volumeOff: '<svg viewBox="0 0 24 24"><path d="M12,4L7,9H3V15H7L12,20V4M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,13.91 18.1,15.61 16.8,16.8L14,14V7.97C15.5,8.71 16.5,10.23 16.5,12C16.5,12.33 16.44,12.65 16.34,12.94L14.38,10.98L14,10.61V3.23Z M21.46,23.96L19.7,22.2C18.3,23.32 16.55,24 14.75,24C10.75,24 7.15,21.81 4.55,19.21L2.48,17.14L3.9,15.73L21.46,23.96Z"></path></svg>'
+        };
+
+        let appState = { 
+            currentUser: '', playerID: '', currentQuiz: [], quizTopic: '', originalQuizOrder: [], 
+            currentQuestionIndex: 0, score: 0, isShuffled: false, userAnswers: [], trueFalseAnswers: {}, isQuizStarted: false, 
+            quizStartTime: null, currentScreen: null, shuffledQuizMap: [], shuffledOptionsMap: [], 
+            feedbackTimeoutId: null,
+            isMasterMuted: false, isMusicMuted: false, isCorrectSoundMuted: false, isIncorrectSoundMuted: false,
+            isAutoAdvanceEnabled: true
+        };
+        
+        document.addEventListener('DOMContentLoaded', () => { initEventListeners(); checkLogin(); });
+        
+        function checkLogin() { 
+            const savedUser = localStorage.getItem('quizAppUser'); 
+            if (savedUser) { 
+                appState.currentUser = savedUser; 
+                document.getElementById('user-greeting').textContent = `Xin chào, ${appState.currentUser}!`; 
+                showScreen('home-screen'); 
+            } else { 
+                showScreen('login-screen'); 
+            } 
+        }
+        
+        function initEventListeners() {
+            document.getElementById('login-btn').addEventListener('click', () => { 
+                const username = document.getElementById('username-input').value.trim(); 
+                if (username) { 
+                    appState.currentUser = username; 
+                    localStorage.setItem('quizAppUser', username); 
+                    document.getElementById('user-greeting').textContent = `Xin chào, ${appState.currentUser}!`; 
+                    showScreen('home-screen'); 
+                } else { 
+                    alert('Vui lòng nhập tên của bạn.'); 
+                } 
+            });
+            document.getElementById('submit-early-btn').addEventListener('click', submitEarly);
+            document.getElementById('menu-shuffle-btn').addEventListener('click', toggleShuffle);
+            document.getElementById('menu-start-btn').addEventListener('click', startQuizFromMenu);
+
+            const settingsIcon = document.getElementById('settings-icon-container');
+            const settingsPanel = document.getElementById('settings-panel');
+            const masterVolumeBtn = document.getElementById('master-volume-btn');
+            const detailedAudioSettings = document.getElementById('detailed-audio-settings');
+            let pressTimer = null;
+            let isLongPress = false;
+
+            settingsIcon.addEventListener('click', () => {
+                settingsPanel.style.display = settingsPanel.style.display === 'block' ? 'none' : 'block';
+            });
+
+            const handleMasterVolumeClick = () => {
+                appState.isMasterMuted = !appState.isMasterMuted;
+                appState.isMusicMuted = appState.isMasterMuted;
+                appState.isCorrectSoundMuted = appState.isMasterMuted;
+                appState.isIncorrectSoundMuted = appState.isMasterMuted;
+                syncSettingsUI();
+                controlBackgroundMusic();
+            };
+
+            masterVolumeBtn.addEventListener('mousedown', () => {
+                isLongPress = false;
+                pressTimer = setTimeout(() => {
+                    isLongPress = true;
+                    detailedAudioSettings.style.display = detailedAudioSettings.style.display === 'block' ? 'none' : 'block';
+                }, 500);
+            });
+
+            masterVolumeBtn.addEventListener('mouseup', () => {
+                clearTimeout(pressTimer);
+                if (!isLongPress) {
+                    handleMasterVolumeClick();
+                }
+            });
+            
+            masterVolumeBtn.addEventListener('touchstart', (e) => {
+                e.preventDefault(); isLongPress = false;
+                pressTimer = setTimeout(() => { isLongPress = true; detailedAudioSettings.style.display = detailedAudioSettings.style.display === 'block' ? 'none' : 'block'; }, 500);
+            }, { passive: false });
+
+            masterVolumeBtn.addEventListener('touchend', (e) => {
+                e.preventDefault(); clearTimeout(pressTimer);
+                if (!isLongPress) { handleMasterVolumeClick(); }
+            });
+
+            document.getElementById('music-toggle').addEventListener('change', (e) => {
+                appState.isMusicMuted = !e.target.checked; controlBackgroundMusic(); syncSettingsUI();
+            });
+            document.getElementById('correct-sound-toggle').addEventListener('change', (e) => {
+                appState.isCorrectSoundMuted = !e.target.checked; syncSettingsUI();
+            });
+            document.getElementById('incorrect-sound-toggle').addEventListener('change', (e) => {
+                appState.isIncorrectSoundMuted = !e.target.checked; syncSettingsUI();
+            });
+            document.getElementById('auto-advance-toggle').addEventListener('change', (e) => {
+                appState.isAutoAdvanceEnabled = e.target.checked;
+            });
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            appState.currentScreen = screenId;
+            const settingsIcon = document.getElementById('settings-icon-container');
+            if (screenId === 'quiz-section') {
+                settingsIcon.style.display = 'block';
+            } else {
+                settingsIcon.style.display = 'none';
+                document.getElementById('settings-panel').style.display = 'none';
+            }
+        }
+
+        function startQuizFromMenu() { 
+            if (typeof QUIZ_DATA_SETS === 'undefined' || Object.keys(QUIZ_DATA_SETS).length === 0) { 
+                alert("Lỗi: Dữ liệu bài thi chưa được chèn vào file."); return; 
+            } 
+            const firstQuizKey = Object.keys(QUIZ_DATA_SETS)[0]; 
+            const quizData = QUIZ_DATA_SETS[firstQuizKey]; 
+            if (!quizData || quizData.length === 0) { 
+                alert("Bài thi này không có câu hỏi nào."); return; 
+            } 
+            appState.quizTopic = firstQuizKey; 
+            appState.originalQuizOrder = JSON.parse(JSON.stringify(quizData)); 
+            showScreen('quiz-section'); 
+            document.getElementById('quiz-title').textContent = appState.quizTopic; 
+            startQuiz(); 
+        }
+        
+        function startQuiz() {
+            appState.score = 0; appState.currentQuestionIndex = 0; appState.userAnswers = []; appState.trueFalseAnswers = {}; appState.isQuizStarted = true; appState.quizStartTime = Date.now(); appState.shuffledQuizMap = []; appState.shuffledOptionsMap = [];
+            
+            const quizData = appState.originalQuizOrder;
+            if (appState.isShuffled) {
+                const shuffleableIndices = quizData
+                    .map((q, i) => (q.groupId ? null : i))
+                    .filter((i) => i !== null);
+    
+                for (let i = shuffleableIndices.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffleableIndices[i], shuffleableIndices[j]] = [shuffleableIndices[j], shuffleableIndices[i]];
+                }
+    
+                const newTempQuiz = [];
+                const newTempQuizMap = [];
+                let shuffleableIndexPointer = 0;
+    
+                for (let i = 0; i < quizData.length; i++) {
+                    if (quizData[i].groupId) {
+                        newTempQuiz[i] = quizData[i];
+                        newTempQuizMap[i] = i;
+                    } else {
+                        const originalIndex = shuffleableIndices[shuffleableIndexPointer];
+                        newTempQuiz[i] = quizData[originalIndex];
+                        newTempQuizMap[i] = originalIndex;
+                        shuffleableIndexPointer++;
+                    }
+                }
+                appState.currentQuiz = newTempQuiz.map(q => ({...q}));
+                appState.shuffledQuizMap = newTempQuizMap;
+            } else {
+                appState.currentQuiz = [...quizData];
+                appState.shuffledQuizMap = quizData.map((_, i) => i);
+            }
+
+            document.getElementById('results-container').style.display = 'none';
+            document.getElementById('retry-btn').style.display = 'none';
+            document.getElementById('submit-early-btn').style.display = 'inline-block';
+            document.getElementById('exit-btn').style.display = 'inline-block';
+            syncSettingsUI(); 
+            controlBackgroundMusic();
+            displayQuestion();
+        }
+
+        function syncSettingsUI() {
+            document.getElementById('master-volume-btn').innerHTML = appState.isMasterMuted ? ICONS.volumeOff : ICONS.volumeOn;
+            document.getElementById('music-toggle').checked = !appState.isMusicMuted;
+            document.getElementById('correct-sound-toggle').checked = !appState.isCorrectSoundMuted;
+            document.getElementById('incorrect-sound-toggle').checked = !appState.isIncorrectSoundMuted;
+            document.getElementById('auto-advance-toggle').checked = appState.isAutoAdvanceEnabled;
+            if(appState.isMasterMuted) {
+                 document.getElementById('music-toggle').checked = false;
+                 document.getElementById('correct-sound-toggle').checked = false;
+                 document.getElementById('incorrect-sound-toggle').checked = false;
+            }
+        }
+
+        function controlBackgroundMusic() {
+            if (!backgroundMusic) return;
+            if (appState.isQuizStarted && !appState.isMasterMuted && !appState.isMusicMuted) {
+                backgroundMusic.loop = true;
+                backgroundMusic.play().catch(e => console.log("Lỗi phát nhạc nền:", e));
+            } else {
+                backgroundMusic.pause();
+                backgroundMusic.currentTime = 0;
+            }
+        }
+        
+        function displayQuestion() {
+            const container = document.getElementById('quiz-live-container');
+            if (appState.currentQuestionIndex >= appState.currentQuiz.length) { showResults(); return; }
+            const q = appState.currentQuiz[appState.currentQuestionIndex];
+            
+            let passageHTML = '';
+            if (q.passage) {
+                let passageText = q.passage;
+                // Attempt to remove a duplicate title from the start of the passage
+                const qNumMatch = q.cau_hoi.match(/^Câu\s*(\d+)/);
+                if (qNumMatch) {
+                    const qNum = qNumMatch[1];
+                    const titleRegex = new RegExp(`^Câu\\s*${qNum}\\s*[:.]*\\s*`, 'i');
+                    passageText = passageText.replace(titleRegex, '');
+                }
+
+                const passageContentHTML = parseContentWithMedia(passageText);
+                passageHTML = `<div style="padding: 12px; margin-bottom: 16px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9; max-height: 200px; overflow-y: auto;">${passageContentHTML}</div>`;
+            }
+
+            let questionHTML = `<div class="question-container" id="q-${appState.currentQuestionIndex}">${passageHTML}<p class="question-text">${parseContentWithMedia(q.cau_hoi)}</p><div class="options-container">`;
+            let optionsToDisplay = [...q.lua_chon];
+            const optionPrefixRegex = /^\s*\*?\s*[A-Za-z]{1,2}[.)]/;
+            if (appState.isShuffled && ['multiple_choice', 'multiple_answer', 'true_false'].includes(q.type)) {
+                let optionIndices = Array.from({length: optionsToDisplay.length}, (_, i) => i);
+                for (let i = optionIndices.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [optionIndices[i], optionIndices[j]] = [optionIndices[j], optionIndices[i]];
+                }
+                appState.shuffledOptionsMap[appState.currentQuestionIndex] = optionIndices;
+                optionsToDisplay = optionIndices.map(i => q.lua_chon[i]);
+            }
+
+            if (q.type === 'short_answer') {
+                questionHTML += `<input type="text" id="short-answer-input-${appState.currentQuestionIndex}" class="short-answer-input" placeholder="Nhập đáp án của bạn...">`;
+            } else if (q.type === 'true_false') {
+                optionsToDisplay.forEach((option, index) => {
+                    const originalIndex = appState.isShuffled ? appState.shuffledOptionsMap[appState.currentQuestionIndex][index] : index;
+                    questionHTML += `
+                        <div class="tf-option">
+                            <div class="tf-statement">${parseContentWithMedia(option.replace(optionPrefixRegex, '').trim())}</div>
+                            <div class="tf-buttons">
+                                <button class="tf-btn" onclick="toggleTrueFalse(this, '${appState.currentQuestionIndex}', '${originalIndex}')">Chọn</button>
+                            </div>
+                        </div>`;
+                });
+            } else {
+                const inputType = q.type === 'multiple_answer' ? 'checkbox' : 'radio';
+                optionsToDisplay.forEach(c => {
+                    questionHTML += `<label><input type="${inputType}" name="option-${appState.currentQuestionIndex}" value="${escapeHtml(c)}" class="mr-2"> ${parseContentWithMedia(c.replace(optionPrefixRegex, '').trim())}</label>`;
+                });
+            }
+            questionHTML += `</div><div class="feedback"></div><button class="btn" style="margin-top:15px;" onclick="checkAnswer()">Trả Lời</button></div>`;
+            container.innerHTML = questionHTML;
+        }
+
+        function toggleTrueFalse(buttonEl, qIndex, optionIndex) {
+            qIndex = parseInt(qIndex);
+            optionIndex = parseInt(optionIndex);
+            
+            if (!appState.trueFalseAnswers[qIndex]) {
+                appState.trueFalseAnswers[qIndex] = {};
+            }
+
+            const currentChoice = appState.trueFalseAnswers[qIndex][optionIndex];
+
+            let newChoice;
+            if (currentChoice === undefined) {
+                newChoice = true; // unset -> true
+            } else if (currentChoice === true) {
+                newChoice = false; // true -> false
+            } else { // currentChoice === false
+                newChoice = undefined; // false -> unset
+            }
+
+            if (newChoice === undefined) {
+                delete appState.trueFalseAnswers[qIndex][optionIndex];
+            } else {
+                appState.trueFalseAnswers[qIndex][optionIndex] = newChoice;
+            }
+
+            // Update button appearance
+            buttonEl.classList.remove('selected-true', 'selected-false');
+            if (newChoice === true) {
+                buttonEl.textContent = 'Đúng';
+                buttonEl.classList.add('selected-true');
+            } else if (newChoice === false) {
+                buttonEl.textContent = 'Sai';
+                buttonEl.classList.add('selected-false');
+            } else {
+                buttonEl.textContent = 'Chọn';
+            }
+        }
+
+        function checkAnswer() {
+            const q = appState.currentQuiz[appState.currentQuestionIndex];
+            const container = document.getElementById(`q-${appState.currentQuestionIndex}`);
+            const feedbackDiv = container.querySelector('.feedback');
+            const optionPrefixRegex = /^\s*\*?\s*[A-Za-z]{1,2}[.)]/;
+            let isCorrect = false;
+
+            const submitButton = container.querySelector('button.btn');
+            submitButton.textContent = 'Câu Tiếp Theo';
+            submitButton.setAttribute('onclick', 'skipToNextQuestion()');
+            
+            if (q.type === 'short_answer') {
+                const userInputField = container.querySelector(`#short-answer-input-${appState.currentQuestionIndex}`);
+                const userAnswer = userInputField.value.trim();
+                userInputField.disabled = true;
+                isCorrect = q.dap_an_dung.some(ans => ans.trim().toLowerCase() === userAnswer.toLowerCase());
+            } else if (q.type === 'true_false') {
+                 const userSelections = appState.trueFalseAnswers[appState.currentQuestionIndex] || {};
+                 let allCorrect = true;
+                 if (Object.keys(userSelections).length !== q.lua_chon.length) {
+                    allCorrect = false;
+                 } else {
+                    for(let i = 0; i < q.lua_chon.length; i++) {
+                        const option = q.lua_chon[i];
+                        const isStatementActuallyCorrect = option.trim().startsWith('*');
+                        const userChoice = userSelections[i];
+
+                        if (userChoice !== isStatementActuallyCorrect) {
+                            allCorrect = false;
+                            break;
+                        }
+                    }
+                 }
+                isCorrect = allCorrect;
+
+                const optionsOnScreen = container.querySelectorAll('.tf-option');
+                const originalOptionsOrder = q.lua_chon;
+                
+                optionsOnScreen.forEach((optionDiv, screenIndex) => {
+                    let originalIndex;
+                    if(appState.isShuffled) {
+                        originalIndex = appState.shuffledOptionsMap[appState.currentQuestionIndex][screenIndex];
+                    } else {
+                        originalIndex = screenIndex;
+                    }
+                    
+                    const isStatementActuallyCorrect = originalOptionsOrder[originalIndex].trim().startsWith('*');
+                    const userChoice = userSelections[originalIndex];
+                    
+                    optionDiv.style.borderWidth = '2px';
+                    if (userChoice === isStatementActuallyCorrect) {
+                        optionDiv.style.borderColor = 'var(--success-color)';
+                    } else {
+                        optionDiv.style.borderColor = 'var(--danger-color)';
+                    }
+                    
+                    const button = optionDiv.querySelector('.tf-btn');
+                    button.disabled = true;
+                    button.classList.remove('selected-true', 'selected-false');
+                    if (isStatementActuallyCorrect) {
+                        button.textContent = 'Đúng';
+                        button.classList.add('selected-true');
+                    } else {
+                        button.textContent = 'Sai';
+                        button.classList.add('selected-false');
+                    }
+                });
+            } else {
+                const getCleanContent = text => text.replace(optionPrefixRegex, '').trim();
+                let selected = Array.from(container.querySelectorAll('input:checked')).map(el => el.value);
+                container.querySelectorAll('input').forEach(el => el.disabled = true);
+                const cleanCorrectAnswers = q.dap_an_dung.map(getCleanContent);
+                const cleanSelectedContents = selected.map(getCleanContent);
+                isCorrect = cleanSelectedContents.length === cleanCorrectAnswers.length && cleanSelectedContents.sort().every((val, index) => val === cleanCorrectAnswers.sort()[index]);
+                container.querySelectorAll('label').forEach(label => {
+                    const input = label.querySelector('input');
+                    if (q.dap_an_dung.some(correct_ans => getCleanContent(correct_ans) === getCleanContent(input.value))) {
+                        label.style.backgroundColor = '#d4edda';
+                    } else if (input.checked) {
+                        label.style.backgroundColor = '#f8d7da';
+                    }
+                });
+            }
+
+            if (isCorrect) {
+                appState.score++;
+                if (correctAnswerSound && !appState.isMasterMuted && !appState.isCorrectSoundMuted) correctAnswerSound.play().catch(e => console.log("Lỗi âm thanh đúng", e));
+            } else {
+                if (incorrectAnswerSound && !appState.isMasterMuted && !appState.isIncorrectSoundMuted) incorrectAnswerSound.play().catch(e => console.log("Lỗi âm thanh sai", e));
+            }
+            feedbackDiv.innerHTML = `<strong style="color: ${isCorrect ? 'var(--success-color)' : 'var(--danger-color)'};">${isCorrect ? 'Đúng' : 'Sai'}!</strong>`;
+            if (!isCorrect && q.type !== 'true_false') {
+                const correctAnswersHTML = q.dap_an_dung.map(ans => parseContentWithMedia(ans.replace(/^\*/, ''))).join('; ');
+                feedbackDiv.innerHTML += `<p>Đáp án đúng: <span style="color: var(--success-color);">${correctAnswersHTML}</span></p>`;
+            }
+
+            if (appState.isAutoAdvanceEnabled) {
+                appState.feedbackTimeoutId = setTimeout(nextQuestion, 2000);
+            }
+        }
+
+        function skipToNextQuestion() {
+            if (appState.feedbackTimeoutId) {
+                clearTimeout(appState.feedbackTimeoutId);
+                appState.feedbackTimeoutId = null;
+            }
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            if (appState.feedbackTimeoutId) {
+                clearTimeout(appState.feedbackTimeoutId);
+                appState.feedbackTimeoutId = null;
+            }
+            appState.currentQuestionIndex++;
+            displayQuestion();
+        }
+
+        function submitEarly() {
+            if (confirm('Bạn có chắc muốn nộp bài sớm không?')) {
+                showResults();
+            }
+        }
+        
+        function showResults() {
+            appState.isQuizStarted = false;
+            controlBackgroundMusic();
+            document.getElementById('quiz-live-container').innerHTML = '';
+            const resultsContainer = document.getElementById('results-container');
+            resultsContainer.style.display = 'block';
+            document.getElementById('final-score').innerHTML = `Bạn đã đúng <strong>${appState.score} / ${appState.currentQuiz.length}</strong> câu!`;
+            document.getElementById('retry-btn').style.display = 'inline-block';
+            document.getElementById('submit-early-btn').style.display = 'none';
+        }
+
+        function toggleShuffle() {
+            appState.isShuffled = !appState.isShuffled;
+            document.getElementById('menu-shuffle-btn').textContent = `Trộn câu hỏi và đáp án: ${appState.isShuffled ? 'Bật' : 'Tắt'}`;
+        }
+        
+        function escapeHtml(text) {
+            if (typeof text !== 'string') return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        function isBase64(str) {
+            if (typeof str !== 'string' || str.length < 20) return false;
+            const cleanedStr = str.replace(/\s/g, '');
+            const base64Regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+            return base64Regex.test(cleanedStr);
+        }
+
+        function parseContentWithMedia(text) {
+            if (typeof text !== 'string' || !text) return '';
+            let rawHtml = escapeHtml(text).replace(/\n/g, '<br />');
+            rawHtml = rawHtml.replace(/#\{([^}]+?)\}#/g, (match, content) => {
+                const cleanedContent = content.trim();
+                if (cleanedContent.startsWith('res/')) {
+                    const safePath = cleanedContent.replace(/[^A-Za-z0-9_./-]/g, '');
+                    return `<img src="${safePath}" alt="Embedded Content" class="question-image">`;
+                }
+                if (isBase64(cleanedContent)) {
+                    return `<img src="data:image/png;base64,${cleanedContent}" alt="Embedded Content" class="question-image">`;
+                }
+                return match;
+            });
+            if (typeof katex !== 'undefined' && katex) {
+                rawHtml = rawHtml.replace(/\$\$([\s\S]+?)\$\$/g, (match, formula) => {
+                    try { return katex.renderToString(formula, { displayMode: true, throwOnError: false }); } catch (e) { return match; }
+                });
+                rawHtml = rawHtml.replace(/\$([\s\S]+?)\$/g, (match, formula) => {
+                    if (match.startsWith('$') || match.endsWith('$')) return match;
+                    try { return katex.renderToString(formula, { displayMode: false, throwOnError: false }); } catch (e) { return match; }
+                });
+            }
+            if (typeof DOMPurify !== 'undefined') {
+                return DOMPurify.sanitize(rawHtml, { ADD_TAGS: ['img'], ADD_ATTR: ['src', 'alt', 'style', 'class'] });
+            }
+            return rawHtml;
+        }
+    </script>
+</body>
+</html>
